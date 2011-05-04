@@ -151,7 +151,6 @@ $(document).ready(function() {
       $(".tablesorter").tablesorter({
         widgets: ['zebra']
       });
-      console.log('Unbinding events');
       $(document).unbind('close.facebox',this);
       $(document).unbind('reveal.facebox', faceboxRevealHandler );
     };
@@ -185,7 +184,6 @@ $(document).ready(function() {
 
   $("#showFieldSelector").click(function(e){
     e.preventDefault();
-    console.log('Binding events');
     $(document).bind('close.facebox', faceboxCloseHandler );
     $(document).bind('reveal.facebox', faceboxRevealHandler );
     $.facebox({ ajax: '/service/ajax/getFieldList/' });
@@ -209,7 +207,6 @@ function setMessage(msg,type)
 
 function ajaxRequest( url, params, dest, async )
 {
-  console.log("Ajaxrequest, url: "+url+" dest: "+dest);
   var asyncParam = typeof(async) != 'undefined' ? async : true;
   var showInFacebox = ( dest === 'facebox' ? true : false );
   $.ajax({
