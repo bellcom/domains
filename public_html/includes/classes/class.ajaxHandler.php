@@ -13,28 +13,6 @@ class ajaxHandler implements mvc\ActionHandler
     );
     switch ($params['action']) 
     {
-      case 'getAccount':
-        require 'class.sugarCrmConnector.php';
-        try
-        {
-          $sugar = sugarCrmConnector::getInstance(); 
-          $sugar->connect(mvc\retrieve( 'config' )->sugarLogin, mvc\retrieve( 'config' )->sugarPassword);
-
-          $input = '"'. $_GET['term'] .'%"';
-          $accounts = array();
-
-          $results = $sugar->getEntryList( 'Accounts', "accounts.account_type = 'Customer' AND accounts.name LIKE $input", 'name', 0, array('name') );
-          foreach ($results->entry_list as $result) 
-          {
-            $accounts[] = (object) array( 'id' => $result->id, 'label' => $result->name_value_list[0]->value, 'value' => $result->name_value_list[0]->value );
-          }
-        }
-        catch(Exception $e)
-        {
-          // TODO
-        }
-        die( json_encode( $accounts ) );
-        break;
       case 'accountsToDomains':
 
         if ( empty($_GET['account_id']) || empty($_GET['domains']))
@@ -140,10 +118,14 @@ class ajaxHandler implements mvc\ActionHandler
 
         break;
       case 'search':
-        if( isset($params['segments'][0][0]) && isset($params['segments'][0][1]))
+        if( isset($_GET['query']) && isset($_GET['type']))
         {
-          $type  = $params['segments'][0][0];
-          $query = $params['segments'][0][1];
+          $type  = $_GET['type'];
+          $query = $_GET['query'];
+        }
+        else
+        {
+          // TODO: return error msg
         }
 
         $query = $query .'%';
@@ -152,92 +134,8 @@ class ajaxHandler implements mvc\ActionHandler
           $query = '%'.$query;
         }
 
-        $initialResults = R::find($type, 'name LIKE ?',array($query));
-        $finalResults = array();
-
-        $domainResults = array();
-
-        foreach ($initialResults as $result )
-        {
-          $formattedResult = new StdClass;
-          switch ($type) 
-          {
-            case 'server':
-              $formattedResult = (object) array(
-                'id' => $result->id,
-                'label' => $result->name,
-                'type' => $type,
-                'desc' => '<td></td><td>'.$result->name .'</td><td>type: '. $result->type  .' internal ip: '. $result->int_ip .'</td>'
-                );
-              $finalResults[] = $formattedResult;
-              break;
-            case 'domain':
-              $owners  = R::related( $result, 'owner' );
-              $linker = mvc\retrieve('beanLinker');
-              $vhost = $linker->getBean($result,'apache_vhost');
-              $server = $linker->getBean($vhost,'server');
-
-              if ( !isset( $domainResults[ $result->name ] ) )
-              {
-                $domainResults[ $result->name ] = array();
-                $domainResults[ $result->name ]['domains'] = array();
-                $domainResults[ $result->name ]['owners']  = array();
-                $domainResults[ $result->name ]['servers'] = array();
-              }
-              
-              $domainResults[ $result->name ]['domains'][] = $result;
-              $domainResults[ $result->name ]['owners'] = array_merge( $domainResults[ $result->name ]['owners'], $owners );
-              $domainResults[ $result->name ]['servers'][] = $server;
-              break;
-          }
-        }
-
-        if ( $type == 'domain' && !empty($domainResults) )
-        {
-          $owners = array();
-          $servers = array();
-          $id = '';
-
-          foreach ( $domainResults as $name => $result )
-          {
-            $id = $name;
-
-            if ( !empty($result['owners']) )
-            {
-              foreach ( $result['owners'] as $owner )
-              {
-                if ( isset($owners[$owner->account_id]) )
-                {
-                  continue;
-                }
-                $owners[$owner->account_id] = '<a href="'. sprintf( mvc\retrieve('config')->sugarAccountUrl,  $owner->account_id ) .'">'. $owner->name .'</a>';
-              }
-              $owner = 'owned by '.implode(',',$owners);
-            }
-
-            if ( !empty($result['servers']) )
-            {
-              foreach ( $result['servers'] as $server )
-              {
-                $servers[] = $server->name;
-              }
-              $server = 'exists on '.implode(',',$servers);
-            }
-            $formattedResult = (object) array(
-              'id' => $id,
-              'label' => $id,
-              'type' => $type,
-              'desc' => '<td></td><td>'.$id .'</td><td>'. $owner .' '. $server .'</td>'
-            );
-            $finalResults[] = $formattedResult;
-          } 
-        }
-
-        $json = array();
-        foreach ( $finalResults as $result )
-        {
-          $json[] = array( 'id' => $result->id, 'label' => $result->label, 'value' => '', 'desc' => '<tr class="line '.$result->type.'">'.$result->desc.'</tr>' );
-        }
+        $handler = new searchHandler( $type );
+        $json = $handler->query($query);
 
         die (json_encode($json));
         break;
@@ -364,7 +262,6 @@ class ajaxHandler implements mvc\ActionHandler
             break;
         }
 
-
         if ( empty($content) )
         {
           $msg = array(
@@ -385,7 +282,8 @@ class ajaxHandler implements mvc\ActionHandler
         }
         break;
 
-      case 'editServerComment':
+        // TODO: should be generalized to allow editing of other fields
+      case 'editServerComment': 
 
         $serverID = (int) $_GET['serverID'];
         $server = R::load( "server", $serverID );
@@ -416,6 +314,7 @@ class ajaxHandler implements mvc\ActionHandler
           );
         }
         break;
+        // TODO: should be generalized to allow editing of other fields
       case 'saveServerComment':
 
         $comment = $_GET['comment'];

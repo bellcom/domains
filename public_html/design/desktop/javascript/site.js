@@ -3,8 +3,20 @@ $(document).ready(function() {
   $.facebox.settings.closeImage = '/design/desktop/images/closelabel.png';
   $.facebox.settings.loadingImage = '/design/desktop/images/loading.gif';
 
-  $("#accountsToDomains #accountName").autocomplete({
-    source: '/service/ajax/getAccount/',
+  $("#accountName").autocomplete({
+    source: function( request, response ) {
+              $.ajax({
+                url: '/service/ajax/search/',
+                data: {
+                  query: request.term,
+                  type: 'account'
+                },
+                dataType: 'json',
+                success: function( data ) {
+                  response( data );
+                }
+              });
+            },
     minLength: 2,
     select: function( event, ui ) {
       $("#accountID").val(ui.item.id);
@@ -37,7 +49,11 @@ $(document).ready(function() {
   $("#searchQuery").autocomplete({
     source: function( request, response ) {
               $.ajax({
-                url: '/service/ajax/search/'+ $("#search_form input:radio:checked").val() +'/'+ request.term,
+                url: '/service/ajax/search/',
+                data: {
+                  query: request.term,
+                  type: $("#search_form input:radio:checked").val()
+                },
                 dataType: 'json',
                 success: function( data ) {
                   response( data );
@@ -180,7 +196,6 @@ $(document).ready(function() {
       }*/
     }).disableSelection();
   };
-
 
   $("#showFieldSelector").click(function(e){
     e.preventDefault();

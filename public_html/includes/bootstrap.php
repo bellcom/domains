@@ -11,6 +11,7 @@ require 'models/class.Model_Harddrive.php';
 require 'classes/class.ajaxHandler.php';
 require 'classes/class.contentHandler.php';
 require 'classes/class.dataCollectorHandler.php';
+require 'classes/class.searchHandler.php';
 require 'functions.php';
 //require 'mobileDetect/MobileDetect.class.php';
 
