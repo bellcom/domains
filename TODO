@@ -3,15 +3,9 @@ TODO
 * [BUG] Domains:
         Brug http://tablesorter.com/docs/example-option-text-extraction.html til at sortere på links
 * [BUG] Search: 
-        viser ikke server når man søger efter domæne
         owner search virker ikke
 * [NEW] Opdater comments felt med det samme
 * [NEW] Vist max X karaktere i comment felt, hvis der er flere brug tooltip
-* [BUG] Samling af bugs relatered til ændring af kolonner:
-        ajax actions i server list virker ikke efter ændring af kolonner
-        #fieldSelector bliver ikke opdateret efter ajax kald
-        Facebox close virker ikke efter anden klik på #showFieldSelector
-        Tablesorter virker ikke med dynamiske kolonner
 * [NEW] Domain status: hvordan skal fejl kobles?
         ajaxHandler getDomains: tilpasses når domain status er fikset
 * [NEW] domains project that need a new name..  "pointy" siger ulrik
@@ -21,6 +15,13 @@ TODO
         Behold kobling mellem account og domain selv hvis databasen bliver tømt for domæner og servere
 
 ===== [ DONE ] =======================================================================================================
+* [BUG] Samling af bugs relatered til ændring af kolonner:
+        ajax actions i server list virker ikke efter ændring af kolonner
+        #fieldSelector bliver ikke opdateret efter ajax kald
+        Facebox close virker ikke efter anden klik på #showFieldSelector
+        Tablesorter virker ikke med dynamiske kolonner
+* [BUG] Search: 
+        viser ikke server når man søger efter domæne
 * [NEW] visning af apt upgrade info på serveroversigten. vis bare antallet af pakker som skal opgraderes, og listen ved mouseover. evt med forskellige farver alt efter hvor mange det er
 * [NEW] visning af uptime på serveroversigten
 * [NEW] Valg af hvilke kolonner der skal vises i oversigterne

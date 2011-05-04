@@ -392,7 +392,7 @@ class ajaxHandler implements mvc\ActionHandler
 
         if ( $server instanceof RedBean_OODBBean )
         {
-          $content = '<form action="/service/ajax/saveServerComment/json/?serverID='.$serverID.'" method="post" id="serverCommentForm">
+          $content = '<form action="/service/ajax/saveServerComment/?serverID='.$serverID.'" method="post" id="serverCommentForm">
             <p>
             <textarea name="comment" rows="10" cols="50">'. $server->comment .'</textarea><br/>
             <input type="submit" name="serverCommentSaveAction" value="Save" />

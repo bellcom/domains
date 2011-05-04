@@ -4,7 +4,7 @@ $(document).ready(function() {
   $.facebox.settings.loadingImage = '/design/desktop/images/loading.gif';
 
   $("#accountsToDomains #accountName").autocomplete({
-    source: '/service/ajax/getAccount/json/',
+    source: '/service/ajax/getAccount/',
     minLength: 2,
     select: function( event, ui ) {
       $("#accountID").val(ui.item.id);
@@ -21,7 +21,7 @@ $(document).ready(function() {
     var query = $("#searchQuery").val();
     var wildcards = ( $("#wildcards").attr('checked') ? 'both' : 'single' )  ;
     $.ajax({
-      url: '/service/ajax/search/json/'+ type +'/'+ query +'/'+ wildcards,
+      url: '/service/ajax/search/'+ type +'/'+ query +'/'+ wildcards,
       dataType: 'json',
       success: function( data ) {
         $("#result tbody").html('');
@@ -37,7 +37,7 @@ $(document).ready(function() {
   $("#searchQuery").autocomplete({
     source: function( request, response ) {
               $.ajax({
-                url: '/service/ajax/search/json/'+ $("#search_form input:radio:checked").val() +'/'+ request.term,
+                url: '/service/ajax/search/'+ $("#search_form input:radio:checked").val() +'/'+ request.term,
                 dataType: 'json',
                 success: function( data ) {
                   response( data );
@@ -54,7 +54,7 @@ $(document).ready(function() {
   $("#accountsToDomains").submit(function(e) {
     e.preventDefault();
     $.ajax({
-      url: '/service/ajax/accountsToDomains/json/',
+      url: '/service/ajax/accountsToDomains/',
       data: $(this).serialize(),
       dataType: 'json',
       success: function(data){
@@ -147,7 +147,7 @@ $(document).ready(function() {
 
   var faceboxCloseHandler = function() {
       // TODO: only if sorting was changed 
-      ajaxRequest('/service/ajax/getServerList/json/','',$("#servers"), false);
+      ajaxRequest('/service/ajax/getServerList/','',$("#servers"), false);
       $(".tablesorter").tablesorter({
         widgets: ['zebra']
       });
@@ -165,7 +165,7 @@ $(document).ready(function() {
         {
           var fields = $(this).sortable('serialize', { expression: /(.+)=(.+)/ });
           $.ajax({
-            url: '/service/ajax/setEnabledFields/json/?type=servers',
+            url: '/service/ajax/setEnabledFields/?type=servers',
             data: fields,
             dataType: 'json',
             success: function(data){
@@ -188,7 +188,7 @@ $(document).ready(function() {
     console.log('Binding events');
     $(document).bind('close.facebox', faceboxCloseHandler );
     $(document).bind('reveal.facebox', faceboxRevealHandler );
-    $.facebox({ ajax: '/service/ajax/getFieldList/html/' });
+    $.facebox({ ajax: '/service/ajax/getFieldList/' });
   });
 
   $(".tablesorter").tablesorter({

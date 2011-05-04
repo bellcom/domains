@@ -98,13 +98,13 @@ foreach ( $enabledFields as $key => $value )
 
       if ( $count['count'] > 0 )
       {
-        echo '<a class="ajaxRequest" href="/service/ajax/getDomains/json/?serverID='.$server->id.'"><img src="/design/desktop/images/domain_template.png" /></a>';
+        echo '<a class="ajaxRequest" href="/service/ajax/getDomains/?serverID='.$server->id.'"><img src="/design/desktop/images/domain_template.png" /></a>';
       }
 
       echo '</td>';
       break;
     case 'comment':
-      echo '<td><a class="ajaxRequest" href="/service/ajax/editServerComment/json/?serverID='.$server->id.'"><img src="/design/desktop/images/pencil';
+      echo '<td><a class="ajaxRequest" href="/service/ajax/editServerComment/?serverID='.$server->id.'"><img src="/design/desktop/images/pencil';
       if ( empty( $server->comment ) )
       {
         echo '_add';
