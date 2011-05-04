@@ -5,6 +5,12 @@ class ajaxHandler implements mvc\ActionHandler
 {
   public function exec($params)
   {
+    $msg = array(
+      'msg'      => 'No data returned',
+      'msg_type' => 'error',
+      'error'    => true,
+      'content'  => '',
+    );
     switch ($params['action']) 
     {
       case 'getAccount':
@@ -31,61 +37,87 @@ class ajaxHandler implements mvc\ActionHandler
         break;
       case 'accountsToDomains':
 
-        $owner = false;
-        $owner = R::findOne('owner', 'account_id=?',array( $_GET['account_id'] ));
-        if ( $owner === false )
+        if ( empty($_GET['account_id']) || empty($_GET['domains']))
         {
-          $owner = R::dispense("owner");
-          $owner->name = $_GET['account_name'];
-          $owner->account_id = $_GET['account_id'];
-          $id = R::store($owner);
+          $msg = array(
+            'msg'      => 'Some fields are missing',
+            'msg_type' => 'error',
+            'error'    => true,
+            'content'  => '',
+          );
         }
-
-        foreach ($_GET['domains'] as $id ) 
+        else
         {
-          $domain = R::load( 'domain', $id );
-          R::associate( $owner, $domain );
-
-          $otherDomainsDefinedInVhost = R::find("domain","vhost_group_key = ?",array($domain->vhost_group_key));
-          foreach ($otherDomainsDefinedInVhost as $otherDomain) 
+          $owner = false;
+          $owner = R::findOne('owner', 'account_id=?',array( $_GET['account_id'] ));
+          if ( !( $owner instanceof RedBean_OODBBean ) )
           {
-            if ( $otherDomain->type === 'name' )
-            {
-              continue;
-            }
-            R::associate( $owner, $otherDomain );
+            $owner = R::dispense("owner");
+            $owner->name = $_GET['account_name'];
+            $owner->account_id = $_GET['account_id'];
+            $id = R::store($owner);
           }
-        }
 
-        $domains = getUnrelatedMainDomains();
-        $html = '';
-        foreach ($domains as $domain) 
-        {
-          $html .= '<option value="'.$domain->id.'">'.$domain->name.'</option>';
-        }
+          foreach ($_GET['domains'] as $id ) 
+          {
+            $domain = R::load( 'domain', $id );
+            R::associate( $owner, $domain );
 
-        $msg = array(
-          'msg'      => $owner->name .' set as owner of domains',
-          'msg_type' => 'ok',
-          'error'    => false,
-          'content'  => $html,
-        );
+            $otherDomainsDefinedInVhost = R::find("domain","apache_vhost_id = ?",array($domain->apache_vhost_id));
+            foreach ($otherDomainsDefinedInVhost as $otherDomain) 
+            {
+              if ( in_array( $otherDomain->id, $_GET['domains'] ) )
+              {
+                continue;
+              }
+              R::associate( $owner, $otherDomain );
+            }
+          }
+
+          $domains = getUnrelatedMainDomains();
+          $html = '';
+          foreach ($domains as $domain) 
+          {
+            $html .= '<option value="'.$domain->id.'">'.$domain->name.'</option>';
+          }
+
+          $msg = array(
+            'msg'      => $owner->name .' set as owner of domains',
+            'msg_type' => 'ok',
+            'error'    => false,
+            'content'  => $html,
+          );
+        }
         break;
       case 'getDomains':
         $serverID = (int) $_GET['serverID'];
         $server = R::load("server",$serverID);
-        $domains = R::related($server,'domain');
+
+        $linker = mvc\retrieve('beanLinker');
+        $vhostIDs = $linker->getKeys($server,'apache_vhost');
+
+        $domains = array();
+        foreach ($vhostIDs as $ID )
+        {
+          $domains = array_merge( $domains, R::find('domain', 'apache_vhost_id=?',array($ID)) );
+        }
 
         if ( !empty($domains) )
         {
-          $html = '<div class="domains list">';
+          $html = '<h1>Domains in vhosts on server (excluding www aliases)</h1><div class="domains list">';
           foreach ($domains as $domain) 
           {
+            // ignore www aliases
+            if ( $domain->sub == 'www' && $domain->type == 'alias')
+            {
+              continue;
+            }
+            // TODO: dns_info is missing
             $html .= '<div class="domain">
-  <div class="status">'. (!empty($domain->dns_info) ? '<img src="/design/desktop/images/error.png" title="'.$domain->dns_info.'" class="icon"/>' : '').'</div>
-  <div class="name'. ($domain->is_active ? '' : ' inactive')  .'"><a href="http://'.$domain->name.'">'. $domain->name .'</a></div>
-<br class="cls"/>
-</div>';
+              <div class="status">'. (!empty($domain->dns_info) ? '<img src="/design/desktop/images/error.png" title="'.$domain->dns_info.'" class="icon"/>' : '').'</div>
+              <div class="name'. ($domain->is_active ? '' : ' inactive')  .'">'. (($domain->type == 'alias') ? '- ' : '') .'<a href="http://'.$domain->getFQDN().'">'. $domain->getFQDN() .'</a></div>
+              <br class="cls"/>
+              </div>';
           }
           $html .= '</div>';
 
@@ -120,39 +152,91 @@ class ajaxHandler implements mvc\ActionHandler
           $query = '%'.$query;
         }
 
-        $results = R::find($type, 'name LIKE ?',array($query));
+        $initialResults = R::find($type, 'name LIKE ?',array($query));
+        $finalResults = array();
 
-        $json = array();
+        $domainResults = array();
 
-        foreach ($results as $result )
+        foreach ($initialResults as $result )
         {
+          $formattedResult = new StdClass;
           switch ($type) 
           {
             case 'server':
-              $desc = '<td></td><td>'.$result->name .'</td><td>type: '. $result->type  .' ip: '. $result->ip .'</td>';
+              $formattedResult = (object) array(
+                'id' => $result->id,
+                'label' => $result->name,
+                'type' => $type,
+                'desc' => '<td></td><td>'.$result->name .'</td><td>type: '. $result->type  .' internal ip: '. $result->int_ip .'</td>'
+                );
+              $finalResults[] = $formattedResult;
               break;
             case 'domain':
-              $servers = R::related( $result, 'server' );
               $owners  = R::related( $result, 'owner' );
-              $serverDesc = array();
-              foreach ($servers as $server) 
-              {
-                $serverDesc[] = $server->name;
-              }
+              $linker = mvc\retrieve('beanLinker');
+              $vhost = $linker->getBean($result,'apache_vhost');
+              $server = $linker->getBean($vhost,'server');
 
-              // there should only be one owner
-              $owner = '';
-              if ( !empty($owners) )
+              if ( !isset( $domainResults[ $result->name ] ) )
               {
-                $o = array_shift($owners);
-                $owner = ' owned by <a href="'. sprintf( mvc\retrieve('config')->sugarAccountUrl,  $o->account_id ) .'">'. $o->name .'</a> ';
+                $domainResults[ $result->name ] = array();
+                $domainResults[ $result->name ]['domains'] = array();
+                $domainResults[ $result->name ]['owners']  = array();
+                $domainResults[ $result->name ]['servers'] = array();
               }
-
-              $desc = '<td>'. 
-                (!empty($result->dns_info) ? '<img src="/design/desktop/images/error.png" title="'.$result->dns_info.'" class="icon"/> ' : '') .'</td><td><a'.($result->is_active ? '' : ' class="inactive"').' href="http://'.$result->name.'">'. $result->name .'</a></td><td>'. $owner .'exist on server'. ( (count($serverDesc)>0) ? 's' : '') .': '. implode(',',$serverDesc).'</td>';
+              
+              $domainResults[ $result->name ]['domains'][] = $result;
+              $domainResults[ $result->name ]['owners'] = array_merge( $domainResults[ $result->name ]['owners'], $owners );
+              $domainResults[ $result->name ]['servers'][] = $server;
               break;
           }
-          $json[] = array( 'id' => $result->id, 'label' => $result->name, 'value' => 'snaps', 'desc' => '<tr class="line '.$type.'">'.$desc.'</tr>' );
+        }
+
+        if ( $type == 'domain' && !empty($domainResults) )
+        {
+          $owners = array();
+          $servers = array();
+          $id = '';
+
+          foreach ( $domainResults as $name => $result )
+          {
+            $id = $name;
+
+            if ( !empty($result['owners']) )
+            {
+              foreach ( $result['owners'] as $owner )
+              {
+                if ( isset($owners[$owner->account_id]) )
+                {
+                  continue;
+                }
+                $owners[$owner->account_id] = '<a href="'. sprintf( mvc\retrieve('config')->sugarAccountUrl,  $owner->account_id ) .'">'. $owner->name .'</a>';
+              }
+              $owner = 'owned by '.implode(',',$owners);
+            }
+
+            if ( !empty($result['servers']) )
+            {
+              foreach ( $result['servers'] as $server )
+              {
+                $servers[] = $server->name;
+              }
+              $server = 'exists on '.implode(',',$servers);
+            }
+            $formattedResult = (object) array(
+              'id' => $id,
+              'label' => $id,
+              'type' => $type,
+              'desc' => '<td></td><td>'.$id .'</td><td>'. $owner .' '. $server .'</td>'
+            );
+            $finalResults[] = $formattedResult;
+          } 
+        }
+
+        $json = array();
+        foreach ( $finalResults as $result )
+        {
+          $json[] = array( 'id' => $result->id, 'label' => $result->label, 'value' => '', 'desc' => '<tr class="line '.$result->type.'">'.$result->desc.'</tr>' );
         }
 
         die (json_encode($json));
@@ -175,8 +259,8 @@ class ajaxHandler implements mvc\ActionHandler
         if ( empty($content) )
         {
           $msg = array(
-            'msg'      => 'ok',
-            'msg_type' => 'No servers found',
+            'msg'      => 'No servers found',
+            'msg_type' => 'ok',
             'error'    => true,
             'content'  => '',
           );
@@ -192,11 +276,11 @@ class ajaxHandler implements mvc\ActionHandler
         }
         break;
       case 'missingFieldsOnServer':
-        
+
         $servers = R::find( "server");
         $content = array();
         $allowedMissing = array( 'comment' );
-        
+
         foreach ( $servers as $server ) 
         {
           $missingFields = array();
@@ -214,7 +298,7 @@ class ajaxHandler implements mvc\ActionHandler
           }
           if ( !empty($missingFields) )
           {
-            $content[] = $server->id.' is missing: '. implode(', ',$missingFields);
+            $content[] = 'Id: '. $server->id . (!empty($server->name) ? ' ('.$server->name.')' : '' ) .' is missing: '. implode(', ',$missingFields);
           }
         }
 
@@ -230,7 +314,7 @@ class ajaxHandler implements mvc\ActionHandler
 
         $domains = R::find( "domain", "is_active=?",array(false));
         $content = array();
-        
+
         foreach ( $domains as $domain )
         {
           $server    = R::load( "server", $domain->server_id );
@@ -240,8 +324,8 @@ class ajaxHandler implements mvc\ActionHandler
         if ( empty($content) )
         {
           $msg = array(
-            'msg'      => 'ok',
-            'msg_type' => 'No inactive domains found',
+            'msg'      => 'No inactive domains found',
+            'msg_type' => 'ok',
             'error'    => true,
             'content'  => '',
           );
@@ -266,22 +350,26 @@ class ajaxHandler implements mvc\ActionHandler
         {
           case 'domains':
             $results = R::find( "domain", "updated < ?", array( $ts ) );
+            foreach ( $results as $domain )
+            {
+              $content[] = $domain->getFQDN();
+            }
             break;
           case 'servers':
             $results = R::find( "server", "updated < ?", array( $ts ) );
+            foreach ( $results as $result )
+            {
+              $content[] = $result->name;
+            }
             break;
         }
 
-        foreach ( $results as $result )
-        {
-          $content[] = $result->name;
-        }
 
         if ( empty($content) )
         {
           $msg = array(
-            'msg'      => 'ok',
-            'msg_type' => 'No '. $type .' not updated the last 3 days',
+            'msg'      => 'No '. $type .' not updated the last 3 days',
+            'msg_type' => 'ok',
             'error'    => true,
             'content'  => '',
           );
@@ -306,17 +394,17 @@ class ajaxHandler implements mvc\ActionHandler
         {
           $content = '<form action="/service/ajax/saveServerComment/json/?serverID='.$serverID.'" method="post" id="serverCommentForm">
             <p>
-              <textarea name="comment" rows="10" cols="50">'. $server->comment .'</textarea><br/>
-              <input type="submit" name="serverCommentSaveAction" value="Save" />
+            <textarea name="comment" rows="10" cols="50">'. $server->comment .'</textarea><br/>
+            <input type="submit" name="serverCommentSaveAction" value="Save" />
             </p>
             </form';
 
-            $msg = array(
-              'msg'      => 'ok',
-              'msg_type' => 'ok',
-              'error'    => false,
-              'content'  => $content,
-            );
+          $msg = array(
+            'msg'      => 'ok',
+            'msg_type' => 'ok',
+            'error'    => false,
+            'content'  => $content,
+          );
         }
         else
         {
@@ -344,53 +432,84 @@ class ajaxHandler implements mvc\ActionHandler
         );
 
         break;
-      case 'serverList':
-        $availableFields = array(
-          'name'       => true,
-          'ip'         => true,
-          'os'         => true,
-          'os_release' => true,
-          'os_kernel'  => true,
-          'arch'       => true,
-          'cpu_count'  => true,
-          'memory'     => true,
-          'harddrives' => true,
-          'partitions' => true,
-          'actions'    => true,
-          'comment'    => true,
-          );
+      case 'setEnabledFields':
+
+        $type = $_GET['type'];
+        $availableFields = getAvaliableFields($type);
         $enabledFields = array();
 
-        foreach ( $_GET['field'] as $key => $value )
+        foreach ( $_GET['field'] as $key )
         {
           if ( isset($availableFields[$key]) )
           {
-            $enabledFields[$key] = true;
+            $enabledFields[$key] = $availableFields[$key];
           }
         }
-        
-        setcookie('enabledFields', serialize( array( 'servers' => $enabledFields) ), time()+3600, '/' );
 
-        $data['enabledFields'] = $enabledFields;
-        $data['serversGrouped'] = getGroupedByType();
+        setcookie('enabledFields', serialize( array( $type => $enabledFields) ), time()+36000, '/' );
+        $msg = array(
+          'msg'      => 'ok',
+          'msg_type' => 'ok',
+          'error'    => false,
+          'content'  => '',
+        );
+        break;
+      case 'getServerList':
+        $data['hasFieldSelector'] = true;
+        $data['avaliableFields']  = getAvaliableFields('servers');
+        $data['enabledFields']    = getEnabledFields('servers');
+        $data['serversGrouped']   = getGroupedByType();
+        $data['template'] = 'design/desktop/templates/servers_list.tpl.php';
         ob_start();
-        mvc\render('design/desktop/templates/servers_list.tpl.php', $data);
+        mvc\render($data['template'], $data);
         $content = ob_get_clean();
 
-          $msg = array(
-            'msg'      => 'ok',
-            'msg_type' => 'error',
-            'error'    => false,
-            'content'  => $content,
-          );
+        $msg = array(
+          'msg'      => 'ok',
+          'msg_type' => 'ok',
+          'error'    => false,
+          'content'  => $content,
+        );
+        break;
+      case 'getFieldList':
+        // TODO: should not be hardcoded
+        $avaliableFields  = getAvaliableFields('servers');
+        $enabledFields    = getEnabledFields('servers');
+        $avaliableLi = '';
+        $enabledLi   = '';
+        $enabledFieldKeys = array_keys($enabledFields);
+
+        foreach ( $avaliableFields as $key => $prettyName )
+        {
+          if (in_array($key,$enabledFieldKeys))
+          {
+            $enabledLi .= '<li id="field='.$key.'">'.$prettyName.'</li>';
+          }
+          else
+          {
+            $avaliableLi .= '<li id="field='.$key.'">'.$prettyName.'</li>';
+          }
+        }
+        die( '<div class="sortableListContainer first">
+          <h2>Enabled fields</h2>
+          <ul class="connectedSortable" id="enabledFields">
+          '.$enabledLi.'
+          </ul>
+          </div>
+          <div class="sortableListContainer last">
+          <h2>Avaliable fields</h2>
+          <ul class="connectedSortable" id="avaliableFields">
+          '.$avaliableLi.'
+          </ul>
+          </div>' );
         break;
       default:
-          $msg = array(
-            'msg'      => 'Unknown action',
-            'msg_type' => 'error',
-            'error'    => true,
-            'content'  => '',
-          );
+        $msg = array(
+          'msg'      => 'Unknown action',
+          'msg_type' => 'error',
+          'error'    => true,
+          'content'  => '',
+        );
         break;
     };  
     die( json_encode( $msg ) );

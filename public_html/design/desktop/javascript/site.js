@@ -73,49 +73,9 @@ $(document).ready(function() {
     });
   });
 
-  $("#fieldSelector form").submit(function(e) {
+  $("body").delegate(".ajaxRequest",'click',function(e) {
     e.preventDefault();
-    var formData = $(this).serialize();
-    var ajaxUrl  = $(this).attr('action');
-    $.ajax({
-      url: ajaxUrl,
-      data: formData,
-      dataType: 'json',
-      success: function(data){
-        if (data.error)
-        {
-          setMessage(data.msg,data.msg_type);
-        }
-        else
-        {
-          $("#servers").fadeOut();
-          $("#servers table").remove();
-          $("#servers").html(data.content);
-          $("#servers").fadeIn();
-        }
-      }
-    });
-  });
-
-  $(".ajaxRequest").click(function(e) {
-    e.preventDefault();
-
-    var url = this.href;
-
-    $.ajax({
-      url: url,
-      dataType: 'json',
-      success: function(data){
-        if (data.error)
-        {
-          setMessage(data.msg,data.msg_type);
-        }
-        else
-        {
-          $.facebox(data.content);
-        }
-      }
-    });
+    ajaxRequest( this.href, {}, 'facebox');
   });
 
   $("body").delegate("#facebox form","submit", function(e){
@@ -185,12 +145,53 @@ $(document).ready(function() {
              });
            });
 
+  var faceboxCloseHandler = function() {
+      // TODO: only if sorting was changed 
+      ajaxRequest('/service/ajax/getServerList/json/','',$("#servers"), false);
+      $(".tablesorter").tablesorter({
+        widgets: ['zebra']
+      });
+      console.log('Unbinding events');
+      $(document).unbind('close.facebox',this);
+      $(document).unbind('reveal.facebox', faceboxRevealHandler );
+    };
+
+  var faceboxRevealHandler = function() {
+    $( "#enabledFields, #avaliableFields" ).sortable({
+      connectWith: ".connectedSortable",
+      placeholder: "ui-state-highlight",
+      update: function(event, ui) {
+        if ( event.target.id === 'enabledFields' )
+        {
+          var fields = $(this).sortable('serialize', { expression: /(.+)=(.+)/ });
+          $.ajax({
+            url: '/service/ajax/setEnabledFields/json/?type=servers',
+            data: fields,
+            dataType: 'json',
+            success: function(data){
+              if (data.error)
+              {
+                setMessage(data.msg,data.msg_type);
+              }
+            }
+          });
+        }
+      }
+      /*stop: function() {
+      }*/
+    }).disableSelection();
+  };
+
+
+  $("#showFieldSelector").click(function(e){
+    e.preventDefault();
+    console.log('Binding events');
+    $(document).bind('close.facebox', faceboxCloseHandler );
+    $(document).bind('reveal.facebox', faceboxRevealHandler );
+    $.facebox({ ajax: '/service/ajax/getFieldList/html/' });
+  });
+
   $(".tablesorter").tablesorter({
-    headers: {
-               1: {
-                    sorter: 'ipAddress' 
-                  }
-             },
     widgets: ['zebra']
   });
 
@@ -199,9 +200,39 @@ $(document).ready(function() {
 
 function setMessage(msg,type)
 {
-  $("#messages").toggle();  
+  //$("#messages").toggle();  
   $("#messages").addClass(type);
+  $("#messages").slideDown();
   $("#messages").html(msg);
   $("#messages").fadeOut(6000);    
-  $("#messages").addClass(type);
+}
+
+function ajaxRequest( url, params, dest, async )
+{
+  console.log("Ajaxrequest, url: "+url+" dest: "+dest);
+  var asyncParam = typeof(async) != 'undefined' ? async : true;
+  var showInFacebox = ( dest === 'facebox' ? true : false );
+  $.ajax({
+    url: url,
+    async: asyncParam,
+    data: params,
+    dataType: 'json',
+    success: function(data) {
+      if (data.error)
+      {
+        setMessage(data.msg,data.msg_type);
+      }
+      else
+      {
+        if ( showInFacebox )
+        {
+          $.facebox(data.content);
+        }
+        else
+        {
+          dest.html(data.content);
+        }
+      }
+    }
+  });
 }

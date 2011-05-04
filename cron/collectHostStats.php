@@ -4,7 +4,7 @@
 
 # will post an array with stats to $collectURL
 
-$collectURL = 'http://domains.bellcom.dk/service/datacollector/';
+$collectURL = 'http://domains.bellcom.dk/service/datacollector/'; // FIXME: should not be hardcoded
 
 $hostStats = array();
 $facterOutput = trim( shell_exec('facter') );
@@ -33,16 +33,34 @@ if ($hostStats['virtual'] == 'xen0')
   $hostStats['disk']['physical'] = physicalDiskInfo();
 }
 
-if ($hostStats['operatingsystem'] == "Debian") 
+$hostStats['software_updates'] = softwareUpdates( $hostStats['lsbdistid'] );
+
+$hostStats['uptime'] = getUptime();
+
+function softwareUpdates( $operatingsystem )
 {
-  $hostStats['aptupdates'] = aptUpdates();
+  $updates = array();
+
+  if ( $operatingsystem == 'Debian' )
+  {
+    shell_exec("apt-get -qq update");
+    $aptget = trim(shell_exec("/usr/bin/apt-get -q -y --allow-unauthenticated -s upgrade | /bin/grep ^Inst | /usr/bin/cut -d\  -f2 | /usr/bin/sort"));
+    $updates = (!empty($aptget) ? explode("\n",$aptget) : array());
+  }
+
+  return $updates;
 }
 
-function aptUpdates()
+/**
+ * Returns uptime in seconds
+ *
+ * @return int
+ * @author Henrik Farre <hf@bellcom.dk>
+ **/
+function getUptime()
 {
-  shell_exec("apt-get -qq update");
-  $aptget = trim(shell_exec("/usr/bin/apt-get -q -y --allow-unauthenticated -s upgrade  |  /bin/grep ^Inst  | /usr/bin/cut -d\  -f2 | /usr/bin/sort"));
-  return explode("\n",$aptget);
+  list( $upTime,$idleTime ) = explode(' ', trim(file_get_contents('/proc/uptime')));
+  return $upTime;
 }
 
 /**
@@ -64,7 +82,7 @@ function physicalDiskInfo()
       foreach ( $lines as $line )
       {
         $line = trim($line);
-        
+
         // only want Model info
         if ( strpos($line,'Model=') !== false  )
         {
@@ -88,8 +106,8 @@ function physicalDiskInfo()
 
 function partitionInfo()
 {
-  // -TP means: include filesystem type and use POSIX portable format, which means that long device names will stay on one line 
-  $df = trim(shell_exec("df -TP -x tmpfs | egrep -v '^Filesystem|Filsystem' | awk '{ print \"device=\" $1 \"&filesystem=\" $2 \"&disktotal=\" $3 \"&diskfree=\" $5 \"&diskused=\" $4 \"&capacity=\" $6 \"&mountpoint=\" $7 }'"));
+  // -TPl means: include filesystem type and use POSIX portable format, which means that long device names will stay on one line, and only show local filesystems
+  $df = trim(shell_exec("df -TPl -x tmpfs | egrep -v '^Filesystem|Filsystem' | awk '{ print \"device=\" $1 \"&filesystem=\" $2 \"&disktotal=\" $3 \"&diskfree=\" $5 \"&diskused=\" $4 \"&capacity=\" $6 \"&mountpoint=\" $7 }'"));
   $dfLines = explode("\n", $df);
   foreach ($dfLines as $line)
   {
@@ -107,53 +125,120 @@ function parseXenDomUs()
 
 function parseVhosts() 
 {
-  $allvhosts = array();
+  $vhosts = array();
 
-  $sitesEnabled = glob( '/etc/apache2/sites-enabled/*' );
-  foreach ( $sitesEnabled as $site ) 
-  {
-    if ( basename( $site ) == '000-default' ) 
-    {
+  $sitesEnabled = glob( '/etc/apache2/sites-enabled/*' ); 
+  foreach ( $sitesEnabled as $site )  
+  {  
+    if ( basename( $site ) == '000-default' )  
+    {  
       continue;
-    }
+    }  
 
-    $vhost = file( $site, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES );
+    $vhostLines = file( $site, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES ); 
 
-    foreach ($vhost as $line) {
+    foreach ($vhostLines as $line) 
+    {  
       # skip lines commented out (do the same for //?)
       if (preg_match('/^#/',trim($line))) 
-      {
+      {  
         continue;
-      }
-      $line = strtolower( trim( $line ) );
+      }  
+      $line = strtolower( trim( $line ) ); 
 
-      if ( strpos($line,'servername') !== false ) 
-      {
-        if (!empty($vhostfile)) 
-        { 
-          $allvhosts[] = $vhostfile;
-          $vhostfile = array();
-        }
-        $vhostfile = array('servername' => trim(strstr($line," ")));
-      }
-      elseif ( strpos($line,'serveralias') !== false ) 
-      {
-        $exploded = explode(" ",trim($line));
-        for ($i = 1;$i < sizeof($exploded);$i++)
+      if ( strpos($line,'<virtualhost') !== false )
+      {  
+        $vhost = array();
+        $aliases = array();
+        $vhost['filename'] = $site;
+      }  
+
+      if ( strpos($line,'</virtualhost') !== false && !empty($vhost) )
+      {  
+        $vhosts[] = $vhost;
+      }  
+
+      if ( strpos($line,'servername') !== false )  
+      {  
+        $vhost['servername'] = trim( strstr($line," ") ); 
+        $vhost['domains'][] = array( 'name' => $vhost['servername'], 'type' => 'name' );
+      }  
+
+      if ( strpos($line,'serveralias') !== false )  
+      {  
+        $entries = explode(" ",$line);
+
+        if ( !is_array($entries) )
+        {  
+          echo 'Something is wrong in the vhost "'.$site.'"'.PHP_EOL;
+          break;
+        }  
+
+        if ( !isset($vhost['domains']) )
+        {  
+          $vhost['domains'] = array();
+        }  
+
+        unset($entries[0]);
+
+        foreach ( $entries as $alias )
         {
-          $vhostfile[] = $exploded[$i];
+          $aliases[] = array( 'name' => trim( $alias ), 'type' => 'alias' );
         }
+        $vhost['domains'] = array_merge($vhost['domains'],$aliases);
+      }
+
+      if ( strpos($line,'documentroot') !== false  )
+      {
+        $vhost['documentroot'] = trim( strstr($line," "));
+        $vhost['app'] = identifyApp($vhost['documentroot']);
+      }
+
+      if ( strpos($line,'serveradmin') !== false  )
+      {
+        $vhost['serveradmin'] = trim( strstr($line," "));
       }
     }
   }
-  $allvhosts[] = $vhostfile;
-  return $allvhosts;
+  return $vhosts;
 }
 
-#print_r($hostStats);
+/**
+ * Tries to identify a web app by looking for specific files
+ *
+ * @param string $path DocumentRoot
+ * @return array
+ * @author Henrik Farre <hf@bellcom.dk>
+ **/
+function identifyApp($path)
+{
+  $knownApps = array(
+    'eZ Publish' => array( 'app' => '/bin/php/ezcache.php', 'version' => '' ), 
+    'Drupal'     => array( 'app' => '/scripts/drupal.sh', 'version' => '/CHANGELOG.txt'),
+    //'Wordpress'  => array( 'app' => '', 'version' => ''),
+  ); 
+
+  foreach ( $knownApps as $name => $identifiers )
+  {  
+    if ( is_file($path.$identifiers['app']) )
+    {  
+      $version = 0.0;
+      return array( 'name' => $name, 'version' => $version ); 
+    }  
+  }  
+  return array( 'name' => 'Unknown app', 'version' => 0.0 ); 
+}
+
+$data = base64_encode( serialize( $hostStats ));
+
+if ( isset( $argv[1] ) && $argv[1] == 'test' )
+{
+  print_r($hostStats);
+  file_put_contents('data.tmp', $data);
+  die("[DONE]\n");
+}
 
 $ch = curl_init();
-$data = base64_encode( serialize( $hostStats ));
 curl_setopt($ch, CURLOPT_URL, $collectURL);
 curl_setopt($ch, CURLOPT_POST, 1);
 curl_setopt($ch, CURLOPT_POSTFIELDS, array( 'data' => $data ));

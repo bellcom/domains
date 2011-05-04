@@ -4,7 +4,16 @@ echo '<thead>
 
 foreach ( $enabledFields as $key => $value )
 {
-  echo '<th class="'.$key.'">'.$key .'</th>';
+  $class = $key;
+  switch ($key) 
+  {
+    case 'int_ip':
+    case 'ext_ip':
+      $class .= " {sorter: 'ipAddress'}";
+      break;
+  }
+
+  echo '<th class="'.$class.'">'.$value .'</th>';
 }
 
   echo '</tr>

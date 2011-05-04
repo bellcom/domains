@@ -1,19 +1,3 @@
 RewriteEngine on  
 RewriteCond $1 !^(index\.php|design) 
 RewriteRule ^([^/].*)$ /index.php/$1 [L]
-
-AuthType Basic
-AuthName "Bellcom only"
-AuthUserFile /var/www/.htpasswd
-Satisfy Any
-require valid-user
-
-Order deny,allow
-Deny from all
-# internal access from all the servers sending data
-Allow from 192.168.1.0/24
-Allow from 192.168.2.0/24
-# office
-Allow from 90.185.183.84
-# mmh
-Allow from 85.80.148.89

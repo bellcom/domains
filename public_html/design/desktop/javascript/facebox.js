@@ -1,4 +1,4 @@
-/*
+/*;
  * Facebox (for jQuery)
  * version: 1.3
  * @requires jQuery v1.2 or later

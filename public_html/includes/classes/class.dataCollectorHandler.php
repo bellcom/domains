@@ -7,6 +7,7 @@ class dataCollectorHandler implements mvc\ActionHandler
   public function exec($params)
   {
     $data = unserialize( base64_decode( $_POST['data'] ) );
+    $linker = mvc\retrieve('beanLinker');
 
     if ( $data['hostname'] == null || empty( $data['hostname'] ) )
     {
@@ -15,14 +16,15 @@ class dataCollectorHandler implements mvc\ActionHandler
 
     $server = R::findOne("server", "name = ? ", array($data['hostname']));
 
-    if ( empty($server) )
+    if ( !($server instanceof RedBean_OODBBean) )
     {
       $server = R::dispense('server');
       $server->created = mktime();
     }
     $server->updated = mktime();
     $server->name    = $data['hostname'];
-    $server->ip      = $data['ipaddress'];
+    $server->int_ip  = $data['ipaddress'];
+    $server->ext_ip  = '';
 
     $hardware = array(
       'memory'   => $data['memorysize'],
@@ -35,13 +37,16 @@ class dataCollectorHandler implements mvc\ActionHandler
       $hardware['partitions'] = $data['disk']['partitions'];
     }
 
-    $server->kernel_release = $data['kernelrelease'];
-    $server->os             = $data['lsbdistid'];
-    $server->os_release     = $data['lsbdistrelease'];
-    $server->arch           = $data['hardwaremodel'];
-    $server->hardware       = serialize($hardware);
-    $server->type           = $data['virtual'];
-    $server->comment        = $server->comment; // keep existing comment - should be dropped when schema is frozen
+    $server->kernel_release   = $data['kernelrelease'];
+    $server->os               = $data['lsbdistid'];
+    $server->os_release       = $data['lsbdistrelease'];
+    $server->arch             = $data['hardwaremodel'];
+    $server->hardware         = serialize($hardware);
+    $server->type             = $data['virtual'];
+    $server->comment          = $server->comment; // keep existing comment - should be dropped when schema is frozen
+    $server->is_active        = true;
+    $server->uptime           = ( isset( $data['uptime'] ) ? $data['uptime'] : 0.0 );
+    $server->software_updates = ( !empty($data['software_updates']) ? serialize( $data['software_updates'] ) : null );
     $serverID = R::store($server);
 
     if ( isset($data['disk']['physical']) )
@@ -49,7 +54,7 @@ class dataCollectorHandler implements mvc\ActionHandler
       foreach ( $data['disk']['physical'] as $disk )
       {
         $drive = R::findOne("harddrive", "serial_no=?", array($disk['SerialNo']));
-        if ( empty($drive) )
+        if ( !($drive instanceof RedBean_OODBBean) )
         {
           $drive = R::dispense('harddrive');
           $drive->created     = mktime();
@@ -117,7 +122,7 @@ class dataCollectorHandler implements mvc\ActionHandler
         $result = array();
 
         $domU = R::findOne("server", "name=?", array($domUName));
-        if ( empty($domU) )
+        if ( !($domU instanceof RedBean_OODBBean) )
         {
           $domU = R::dispense('server');
           $domU->name = $domUName;
@@ -138,45 +143,91 @@ class dataCollectorHandler implements mvc\ActionHandler
     // Handle domains
     if ( isset($data['vhosts']) )
     {
-      foreach ($data['vhosts'] as $domains) 
-      {
-        $updateTimestamp = mktime();
-        $vhostGroupKey = trim( $domains['servername'] );
-        foreach ($domains as $key => $domainName) 
-        {
-          $domainName = trim( $domainName );
+      $updateTimestamp = mktime();
 
-          if ( empty($domainName) )
+      foreach ($data['vhosts'] as $vhost) 
+      {
+        $apacheVhost = R::findOne('apache_vhost','server_id=? AND server_name=?',array($serverID,$vhost['servername']));
+        if ( !($apacheVhost instanceof RedBean_OODBBean) )
+        {
+          $apacheVhost = R::dispense('apache_vhost');
+          $apacheVhost->created = $updateTimestamp;
+        }
+
+        $apacheVhost->updated       = $updateTimestamp;
+        $apacheVhost->server_name   = $vhost['servername'];
+        $apacheVhost->file_name     = ( isset($vhost['filename']) ? $vhost['filename'] : null );
+        $apacheVhost->document_root = ( isset($vhost['documentroot']) ? $vhost['documentroot'] : null );
+        $apacheVhost->server_admin  = ( isset($vhost['serveradmin']) ? $vhost['serveradmin'] : null );
+
+        $app = null;
+        if ( isset($vhost['app']['name']) )
+        {
+          $app = R::findOne('app','name=?',array($vhost['app']['name']));
+          if ( !($app instanceof RedBean_OODBBean) )
+          {
+            $app = R::dispense('app');
+            $app->name = $vhost['app']['name'];
+            R::store($app);
+          }
+        }
+        
+        $apacheVhost->app_version   = ( isset( $vhost['app']['version'] ) ? $vhost['app']['version'] : null);
+        $apacheVhost->is_valid      = true;
+        $apacheVhost->comment       = '';
+
+        if ( $app instanceof RedBean_OODBBean )
+        {
+          $linker->link($apacheVhost,$app);
+        }
+        $linker->link($apacheVhost,$server);
+        $apacheVhostID = R::store($apacheVhost);
+
+        foreach ($vhost['domains'] as $domainEntry) 
+        {
+          if ( empty($domainEntry['name']) )
           {
             continue;
           }
 
-          $domain = array();
-          $domain = R::findOne("domain", "name = ? and server_id = ? ", array( $domainName, $serverID ));
+          $domainParts = array();
+          $domainParts = array_reverse( explode('.', $domainEntry['name']) );
+          // TODO: check if 2 first parts are an ccTLD, see http://publicsuffix.org/list/
+          $tld = null;
+          $sld = null;
+          $sub = null;
+          $tld = array_shift( $domainParts );
+          $sld = array_shift( $domainParts );
+          $sub = ( !empty( $domainParts ) ? implode( '.', array_reverse( $domainParts ) ) : null );
 
-          if ( empty($domain) )
+          $sql = 'sub=? AND sld=? AND tld=? AND apache_vhost_id=?';
+          $args = array($sub,$sld,$tld,$apacheVhostID);
+          if ( is_null($sub) )
+          {
+            $sql = 'sub IS NULL AND sld=? AND tld=? AND apache_vhost_id=?';
+            $args = array($sld,$tld,$apacheVhostID);
+          }
+          $domain = R::findOne('domain',$sql,$args);
+
+          if ( !($domain instanceof RedBean_OODBBean) )
           {
             $domain = R::dispense('domain'); 
-            $domain->created = mktime();
+            $domain->created = $updateTimestamp;
           }
-          $domain->updated         = $updateTimestamp;
-          $domain->name            = $domainName;
-          $domain->vhost_group_key = $vhostGroupKey;
-          $domain->is_active       = true;
-          $domain->server_id       = $serverID; // a domain can exist on multiple servers
-          $domain->type            = 'alias';
+          $domain->updated   = $updateTimestamp;
+          $domain->sub       = ( empty( $sub ) ? null : $sub );
+          $domain->sld       = $sld;
+          $domain->tld       = $tld;
+          $domain->name      = $domainEntry['name'];
+          $domain->type      = $domainEntry['type'];
+          $domain->is_active = true;
 
-          if ( $key === 'servername' )
-          {
-            $domain->type = 'name';
-          }
-
+          $linker->link($domain,$apacheVhost);
           $domainID = R::store($domain);
-          R::associate($server,$domain);
         }
 
         // set is_active to false for those domains in the current vhost which has not been updated
-        $notUpdatedDomains = R::find("domain","updated != ? AND vhost_group_key = ?", array( $updateTimestamp, $vhostGroupKey ));
+        $notUpdatedDomains = R::find("domain","updated != ? AND apache_vhost_id = ?", array( $updateTimestamp, $apacheVhostID ));
         $domain = array();
         foreach ($notUpdatedDomains as $domain) 
         {

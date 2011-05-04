@@ -8,23 +8,18 @@ foreach ( $enabledFields as $key => $value )
 {
   switch ($key) 
   {
-    case 'name':
-      echo '<td class="name">'.$server->name.'</td>';
-      break;
-    case 'ip':
-      echo '<td>'.$server->ip.'</td>';
+    case 'software_updates':
+      $updates = (!is_null($server->$key) ? unserialize($server->$key) : '' );
+      echo '<td class="software_updates">';
+      if ( !empty($updates) )
+      {
+        echo '<div class="tooltip_trigger">'.count($updates).'</div>
+        <div class="tooltip">'.implode('<br/>',$updates).'</div>';
+      }
+      echo '</td>';
       break;
     case 'os':
       echo '<td class="os '.strtolower( $server->os ).'">'.$server->os.'</td>';
-      break;
-    case 'os_release':
-      echo '<td>'.$server->os_release.'</td>';
-      break;
-    case 'os_kernel':
-      echo '<td>'.$server->kernel_release.'</td>';
-      break;
-    case 'arch':
-      echo '<td>'.$server->arch.'</td>';
       break;
     case 'cpu_count':
       echo '<td class="hardware cpu'. ( ( $hardware['cpucount'] ) ? '' : ' error' ) .'">'. ( ( $hardware['cpucount'] )?:'<span class="error">?</span>' ) .'</td>';
@@ -58,12 +53,12 @@ foreach ( $enabledFields as $key => $value )
           $capacity = str_replace('%','', $part['capacity'] );
           $msg = '';
           $img = '';
-          if ( $capacity > 40 )
+          if ( $capacity > 80 )
           {
             $msg = 'Partition is more than 80% full<br/>';
             $img = 'information';
           }
-          if ( $capacity > 60 )
+          if ( $capacity > 90 )
           {
             $msg = 'Partition is more than 90% full<br/>';
             $img = 'error';
@@ -97,9 +92,11 @@ foreach ( $enabledFields as $key => $value )
     case 'actions':
       echo '<td class="actions">';
 
-      $domains = array() ;
-      $domains = R::related( $server, 'domain' );
-      if ( !empty($domains) )
+      //$vhosts = R::find('apache_vhost','server_id=?',array($server->id));
+
+      $count = R::getCell("SELECT count(*) AS count FROM apache_vhost WHERE server_id = ?",array($server->id));
+
+      if ( $count['count'] > 0 )
       {
         echo '<a class="ajaxRequest" href="/service/ajax/getDomains/json/?serverID='.$server->id.'"><img src="/design/desktop/images/domain_template.png" /></a>';
       }
@@ -113,6 +110,9 @@ foreach ( $enabledFields as $key => $value )
         echo '_add';
       }
       echo '.png" alt="Edit comment" class="icon"/></a>'.( !empty( $server->comment ) ? $server->comment : '').'</td>';
+      break;
+    default:
+      echo '<td class="'.$key.'">'.$server->$key.'</td>';
       break;
   }
 }

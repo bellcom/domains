@@ -14,10 +14,61 @@ class contentHandler implements mvc\ActionHandler
     $data['module']     = $module;
     $data['view']       = $view;
     $data['designPath'] = $designPath;
-    $data['title']      = 'Page title'; // TODO: should be sat by module
+    $data['title']      = '';
+    $data['uri']        = '/'.$module.'/'.$view;
+    $data['uriArray']   = array('/',$module,$view);
+
+    switch ($module) 
+    {
+      case 'domains':
+        $domains = R::find('domain');
+        $data['title'] = 'Domains';
+        $data['domains'] = $domains;
+        $data['template'] = $designPath.'templates/domains.tpl.php';
+        break;
+
+      case 'accounts':
+        $data['title'] = 'Domains to accounts';
+        $data['domains'] = getUnrelatedMainDomains();
+        $data['template'] = $designPath.'templates/accounts.tpl.php';
+        break;
+
+      case 'servers':
+        $data['title'] = 'Servers';
+        $data['hasFieldSelector'] = true;
+        $data['avaliableFields']  = getAvaliableFields('servers');
+        $data['enabledFields']    = getEnabledFields('servers');
+        $data['serversGrouped']   = getGroupedByType();
+        $data['template'] = $designPath.'templates/servers_list.tpl.php';
+        break;
+
+      case 'search':
+        $data['title'] = 'Search';
+        $data['template'] = $designPath.'templates/search.tpl.php';
+        break;
+
+      case 'cleanup':
+        $data['title'] = 'Cleanup';
+        $data['template'] = $designPath.'templates/cleanup.tpl.php';
+        break;
+
+      default:
+        $data['title'] = '404 Page not found';
+        $data['template'] = $designPath.'templates/error.tpl.php';
+        $data['error'] = array(
+          'code' => '404',
+          'msg' => 'Page not found',
+        );
+        break;
+    }
 
     mvc\render($designPath.'templates/header.tpl.php', $data);
     mvc\render($designPath.'templates/top_menu.tpl.php', $data);
+
+    if ( isset( $data['hasFieldSelector'] ) && $data['hasFieldSelector'] )
+    {
+      mvc\render($designPath.'templates/field_selector.tpl.php',$data);
+    }
 
     if ( mvc\retrieve('debug') )
     {
@@ -25,50 +76,7 @@ class contentHandler implements mvc\ActionHandler
       mvc\render($designPath.'templates/debug.tpl.php',$data);
     }
 
-    switch ($module) 
-    {
-      case 'domains':
-        $accountToDomains = array();
-        $owners = R::find('owner');
-
-        foreach ( $owners as $owner ) 
-        {
-          $domains = R::related( $owner, 'domain' );
-          $accountToDomains[ $owner->account_id ]['owner'] = $owner;
-          $accountToDomains[ $owner->account_id ]['domains'] = $domains;
-        }
-        $data['accountToDomains'] = $accountToDomains;
-
-        mvc\render($designPath.'templates/domains.tpl.php', $data);
-        break;
-
-      case 'accounts':
-        $data['domains'] = getUnrelatedMainDomains();
-        mvc\render($designPath.'templates/accounts.tpl.php', $data);
-        break;
-
-      case 'servers':
-        $data['enabledFields']  = getEnabledFields('servers');
-        $data['serversGrouped'] = getGroupedByType();
-        mvc\render($designPath.'templates/servers_list.tpl.php', $data);
-        break;
-
-      case 'search':
-        mvc\render($designPath.'templates/search.tpl.php', $data);
-        break;
-
-      case 'cleanup':
-        mvc\render($designPath.'templates/cleanup.tpl.php', $data);
-        break;
-
-      default:
-        $data['error'] = array(
-          'code' => '404',
-          'msg' => 'Page not found',
-        );
-        mvc\render($designPath.'templates/error.tpl.php', $data);
-        break;
-    }
+    mvc\render($data['template'],$data);
 
     mvc\render($designPath.'templates/footer.tpl.php', $data);
   }

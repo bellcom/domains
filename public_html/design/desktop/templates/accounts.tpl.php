@@ -18,7 +18,13 @@
 <?php
 foreach ($domains as $domain) 
 {
-      echo '<option value="'.$domain->id.'">'.$domain->name.'</option>';
+  // ignore www aliases
+  if ( $domain->sub == 'www' && $domain->type == 'alias')
+  {
+    continue;
+  }
+  $fqdn = ( !is_null( $domain->sub ) ? $domain->sub.'.' : '' ) . $domain->sld.'.'.$domain->tld;
+  echo '<option value="'.$domain->id.'">'.$fqdn.'</option>';
 }
 ?>
     </select>
