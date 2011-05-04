@@ -60,46 +60,7 @@ class dataCollectorHandler implements mvc\ActionHandler
           $drive->created     = mktime();
           $drive->updated     = mktime();
           $drive->is_active   = true;
-
-          $brand = ( isset($disk['brand']) ? $disk['brand'] : 'Unknown' );
-
-          // Try an educated guess
-          if ( $brand == 'Unknown' )
-          {
-            $found = false;
-            if ( !$found && substr($disk['Model'], 0, 2) == 'ST')
-            {
-              $brand = 'Seagate';
-              $found = true;
-            }
-            if ( !$found && substr($disk['Model'], 0, 2) == 'IC')
-            {
-              $brand = 'IBM';
-              $found = true;
-            }
-            if ( !$found && substr($disk['Model'], 0, 3) == 'WDC')
-            {
-              $brand = 'Western Digital';
-              $found = true;
-            }
-            if ( !$found && substr($disk['Model'], 0, 7) == 'TOSHIBA')
-            {
-              $brand = 'Toshiba';
-              $found = true;
-            }
-            if ( !$found && substr($disk['Model'], 0, 7) == 'SAMSUNG')
-            {
-              $brand = 'Samsung';
-              $found = true;
-            }
-            if ( !$found && substr($disk['Model'], 0, 6) == 'MAXTOR')
-            {
-              $brand = 'Maxtor';
-              $found = true;
-            }
-          }
-
-          $drive->brand       = $brand;
+          $drive->setBrand($disk['Model']);
           $drive->model       = $disk['Model'];
           $drive->serial_no   = $disk['SerialNo'];
           $drive->fw_revision = $disk['FwRev'];

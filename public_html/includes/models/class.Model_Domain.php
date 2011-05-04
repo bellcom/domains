@@ -1,5 +1,4 @@
 <?php
-use MiMViC as mvc;  
 /**
  * Provides extra functions for the domain bean
  * A Domain represents a single domain on one server. The domain name might exist on multiple servers, 
@@ -10,9 +9,6 @@ use MiMViC as mvc;
  **/
 class Model_Domain extends RedBean_SimpleModel
 {
-  private $vhost  = null;
-  private $server = null;
-
   /**
    * Builds the fqdn from the parts of the domain
    *
