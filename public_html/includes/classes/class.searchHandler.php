@@ -57,6 +57,7 @@ class searchHandler
     foreach ($initialResults as $result )
     {
       $formattedResult = new StdClass;
+      $owners = array();
       $owners  = R::related( $result, 'owner' );
       $linker = mvc\retrieve('beanLinker');
       $vhost = $linker->getBean($result,'apache_vhost');
@@ -75,12 +76,10 @@ class searchHandler
       $domainResults[ $result->name ]['servers'][] = $server;
     }
 
-    $owners = array();
-    $servers = array();
-    $id = '';
-
     foreach ( $domainResults as $name => $result )
     {
+      $owners = array();
+      $servers = array();
       $id = $name;
 
       if ( !empty($result['owners']) )
@@ -102,13 +101,13 @@ class searchHandler
         {
           $servers[] = $server->name;
         }
-        $server = 'exists on '.implode(',',$servers);
+        $server = 'exists on '.implode(', ',$servers);
       }
       $formattedResult = array(
         'id'    => $id,
         'label' => $id,
         'type'  => $this->type,
-        'desc'  => '<td></td><td>'.$id .'</td><td>'. $owner .' '. $server .'</td>'
+        'desc'  => '<tr><td></td><td>'.$id .'</td><td>'. $owner .' '. $server .'</td></tr>'
       );
       $finalResults[] = $formattedResult;
     } 
