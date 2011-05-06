@@ -18,6 +18,9 @@ foreach ( $enabledFields as $key => $value )
       }
       echo '</td>';
       break;
+    case 'uptime':
+      echo '<td class="'.$key.'">'. ( ($server->$key>0) ? (int)( $server->$key/60/60/24 ).' days' : '' ) .'</td>';
+      break;
     case 'os':
       echo '<td class="os '.strtolower( $server->os ).'">'.$server->os.'</td>';
       break;
