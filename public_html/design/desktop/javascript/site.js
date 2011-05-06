@@ -33,7 +33,12 @@ $(document).ready(function() {
     var query = $("#searchQuery").val();
     var wildcards = ( $("#wildcards").attr('checked') ? 'both' : 'single' )  ;
     $.ajax({
-      url: '/service/ajax/search/'+ type +'/'+ query +'/'+ wildcards,
+      url: '/service/ajax/search/',
+      data: {
+        query: query,
+        type: type,
+        wildcards: wildcards
+      },
       dataType: 'json',
       success: function( data ) {
         $("#result tbody").html('');
@@ -201,14 +206,30 @@ $(document).ready(function() {
     e.preventDefault();
     $(document).bind('close.facebox', faceboxCloseHandler );
     $(document).bind('reveal.facebox', faceboxRevealHandler );
-    $.facebox({ ajax: '/service/ajax/getFieldList/' });
+    $.facebox( 
+      function() { 
+        $.ajax({
+          url: '/service/ajax/getFieldList/',
+          dataType: 'json',
+          success: function(data) {
+            if (data.error)
+            {
+              setMessage(data.msg,data.msg_type);
+            }
+            else
+            {
+              $.facebox(data.content);
+            }
+          } 
+        });
+      });
   });
 
   $(".tablesorter").tablesorter({
     widgets: ['zebra']
   });
 
-  $(".tooltip_trigger").tooltip().dynamic({ bottom: { direction: 'down', bounce: true } });
+  $(".tooltip_trigger").tooltip().dynamic({ bottom: { direction: 'down', bounce: true, predelay: 1000 } });
 });
 
 function setMessage(msg,type)

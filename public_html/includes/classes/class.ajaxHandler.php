@@ -3,26 +3,55 @@ use MiMViC as mvc;
 
 class ajaxHandler implements mvc\ActionHandler
 {
+  private $json = array();
+  const OK = 'ok';
+  const WARNING = 'warning';
+  const ERROR = 'error';
+
+  /**
+   * undocumented function
+   *
+   * @return void
+   * @author Henrik Farre <hf@bellcom.dk>
+   **/
+  private function setJsonMsg( array $fields, $type = self::OK )
+  {
+    $this->json['msg_type'] = $type;
+    $this->json['error'] = ($type != self::OK) ? true : false;
+    $this->json = array_merge($this->json,$fields);
+  }
+  private function setJsonData( array $data )
+  {
+    $this->json = $data;
+  }
+
+  /**
+   * Returns the json with correct headers
+   *
+   * @return void
+   * @author Henrik Farre <hf@bellcom.dk>
+   **/
+  public function outPutJson()
+  {
+    header('Cache-Control: no-cache, must-revalidate');
+    header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+    header('Content-type: application/json');
+    echo json_encode($this->json);
+  }
+
   public function exec($params)
   {
-    $msg = array(
-      'msg'      => 'No data returned',
-      'msg_type' => 'error',
-      'error'    => true,
-      'content'  => '',
-    );
+    register_shutdown_function( array($this,'outPutJson') );
+
+    $this->setJsonMsg( array('msg' => 'No data returned'), self::ERROR );
+
     switch ($params['action']) 
     {
       case 'accountsToDomains':
 
         if ( empty($_GET['account_id']) || empty($_GET['domains']))
         {
-          $msg = array(
-            'msg'      => 'Some fields are missing',
-            'msg_type' => 'error',
-            'error'    => true,
-            'content'  => '',
-          );
+          $this->setJsonMsg( array('msg' => 'Some fields are missing'), self::ERROR );
         }
         else
         {
@@ -59,12 +88,10 @@ class ajaxHandler implements mvc\ActionHandler
             $html .= '<option value="'.$domain->id.'">'.$domain->name.'</option>';
           }
 
-          $msg = array(
-            'msg'      => $owner->name .' set as owner of domains',
-            'msg_type' => 'ok',
-            'error'    => false,
-            'content'  => $html,
-          );
+          $this->setJsonMsg( array(
+              'msg'      => $owner->name .' set as owner of domains',
+              'content'  => $html,
+            ));
         }
         break;
       case 'getDomains':
@@ -99,21 +126,14 @@ class ajaxHandler implements mvc\ActionHandler
           }
           $html .= '</div>';
 
-          $msg = array(
-            'msg'      => '',
-            'msg_type' => 'ok',
-            'error'    => false,
-            'content'  => $html,
-          );
+          $this->setJsonMsg( array(
+              'msg'      => 'ok',
+              'content'  => $html,
+            ));
         }
         else
         {
-          $msg = array(
-            'msg'      => 'No domains found on server',
-            'msg_type' => 'warning',
-            'error'    => true,
-            'content'  => '',
-          );
+          $this->setJsonMsg( array( 'msg' => 'No domains found on server'), self::WARNING);
         }
 
         break;
@@ -122,22 +142,22 @@ class ajaxHandler implements mvc\ActionHandler
         {
           $type  = $_GET['type'];
           $query = $_GET['query'];
+
+          $query = $query .'%';
+          if ( isset($_GET['wildcards']) && $_GET['wildcards'] == 'both')
+          {
+            $query = '%'.$query;
+          }
+
+          $handler = new searchHandler( $type );
+          $json = $handler->query($query);
+
+          $this->setJsonData( $json );
         }
         else
         {
-          // TODO: return error msg
+          $this->setJsonMsg( array( 'msg' => 'Missing paramaters'), self::ERROR);
         }
-
-        $query = $query .'%';
-        if ( isset($params['segments'][0][2]) && $params['segments'][0][2] == 'both')
-        {
-          $query = '%'.$query;
-        }
-
-        $handler = new searchHandler( $type );
-        $json = $handler->query($query);
-
-        die (json_encode($json));
         break;
       case 'missingDomRelation':
 
@@ -156,21 +176,11 @@ class ajaxHandler implements mvc\ActionHandler
 
         if ( empty($content) )
         {
-          $msg = array(
-            'msg'      => 'No servers found',
-            'msg_type' => 'ok',
-            'error'    => true,
-            'content'  => '',
-          );
+          $this->setJsonMsg( array( 'msg' => 'No servers found', 'msg_type' => self::OK), self::ERROR);
         }
         else
         {
-          $msg = array(
-            'msg'      => 'ok',
-            'msg_type' => 'ok',
-            'error'    => false,
-            'content'  => implode('<br/>',$content),
-          );
+          $this->setJsonMsg( array( 'msg' => 'ok','content'=>implode('<br/>',$content)));
         }
         break;
       case 'missingFieldsOnServer':
@@ -200,12 +210,7 @@ class ajaxHandler implements mvc\ActionHandler
           }
         }
 
-        $msg = array(
-          'msg'      => 'ok',
-          'msg_type' => 'ok',
-          'error'    => false,
-          'content'  => implode('<br/>',$content),
-        );
+        $this->setJsonMsg( array( 'msg' => 'ok','content'=>implode('<br/>',$content)));
         break;
 
       case 'inactiveDomains':
@@ -221,21 +226,11 @@ class ajaxHandler implements mvc\ActionHandler
 
         if ( empty($content) )
         {
-          $msg = array(
-            'msg'      => 'No inactive domains found',
-            'msg_type' => 'ok',
-            'error'    => true,
-            'content'  => '',
-          );
+          $this->setJsonMsg( array( 'msg' => 'No inactive domains found','msg_type'=> self::OK), self::ERROR);
         }
         else
         {
-          $msg = array(
-            'msg'      => 'ok',
-            'msg_type' => 'ok',
-            'error'    => false,
-            'content'  => implode('<br/>',$content),
-          );
+          $this->setJsonMsg( array( 'msg' => 'ok','content'=>implode('<br/>',$content)));
         }
         break;
       case 'notUpdatedRecently':
@@ -264,21 +259,11 @@ class ajaxHandler implements mvc\ActionHandler
 
         if ( empty($content) )
         {
-          $msg = array(
-            'msg'      => 'No '. $type .' not updated the last 3 days',
-            'msg_type' => 'ok',
-            'error'    => true,
-            'content'  => '',
-          );
+          $this->setJsonMsg( array( 'msg' => 'No '. $type .' not updated the last 3 days','msg_type'=> self::OK), self::ERROR);
         }
         else
         {
-          $msg = array(
-            'msg'      => 'ok',
-            'msg_type' => 'ok',
-            'error'    => false,
-            'content'  => implode('<br/>',$content),
-          );
+          $this->setJsonMsg( array( 'msg' => 'ok','content'=>implode('<br/>',$content)));
         }
         break;
 
@@ -297,21 +282,11 @@ class ajaxHandler implements mvc\ActionHandler
             </p>
             </form';
 
-          $msg = array(
-            'msg'      => 'ok',
-            'msg_type' => 'ok',
-            'error'    => false,
-            'content'  => $content,
-          );
+          $this->setJsonMsg( array( 'msg' => 'ok', 'content' => $content));
         }
         else
         {
-          $msg = array(
-            'msg'      => 'Unknown server',
-            'msg_type' => 'error',
-            'error'    => true,
-            'content'  => '',
-          );
+          $this->setJsonMsg( array( 'msg' => 'Unknown server'), self::ERROR);
         }
         break;
         // TODO: should be generalized to allow editing of other fields
@@ -323,12 +298,7 @@ class ajaxHandler implements mvc\ActionHandler
         $server->comment = $comment;
         R::store($server);
 
-        $msg = array(
-          'msg'      => 'Comment stored',
-          'msg_type' => 'ok',
-          'error'    => false,
-          'content'  => '',
-        );
+        $this->setJsonMsg( array( 'msg' => 'Comment stored'));
 
         break;
       case 'setEnabledFields':
@@ -346,12 +316,7 @@ class ajaxHandler implements mvc\ActionHandler
         }
 
         setcookie('enabledFields', serialize( array( $type => $enabledFields) ), time()+36000, '/' );
-        $msg = array(
-          'msg'      => 'ok',
-          'msg_type' => 'ok',
-          'error'    => false,
-          'content'  => '',
-        );
+        $this->setJsonMsg( array( 'msg' => 'Enabled fields set'));
         break;
       case 'getServerList':
         $data['hasFieldSelector'] = true;
@@ -363,12 +328,7 @@ class ajaxHandler implements mvc\ActionHandler
         mvc\render($data['template'], $data);
         $content = ob_get_clean();
 
-        $msg = array(
-          'msg'      => 'ok',
-          'msg_type' => 'ok',
-          'error'    => false,
-          'content'  => $content,
-        );
+        $this->setJsonMsg( array( 'msg' => 'ok', 'content' => $content));
         break;
       case 'getFieldList':
         // TODO: should not be hardcoded
@@ -389,7 +349,8 @@ class ajaxHandler implements mvc\ActionHandler
             $avaliableLi .= '<li id="field='.$key.'">'.$prettyName.'</li>';
           }
         }
-        die( '<div class="sortableListContainer first">
+
+        $content = '<div class="sortableListContainer first">
           <h2>Enabled fields</h2>
           <ul class="connectedSortable" id="enabledFields">
           '.$enabledLi.'
@@ -400,17 +361,12 @@ class ajaxHandler implements mvc\ActionHandler
           <ul class="connectedSortable" id="avaliableFields">
           '.$avaliableLi.'
           </ul>
-          </div>' );
+          </div>';
+        $this->setJsonMsg( array( 'msg' => 'ok', 'content' => $content));
         break;
       default:
-        $msg = array(
-          'msg'      => 'Unknown action',
-          'msg_type' => 'error',
-          'error'    => true,
-          'content'  => '',
-        );
+        $this->setJsonMsg( array( 'msg' => 'Unknown action'), self::ERROR);
         break;
     };  
-    die( json_encode( $msg ) );
   }
 }
