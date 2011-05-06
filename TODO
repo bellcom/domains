@@ -1,5 +1,9 @@
 TODO
 
+* [BUG] Owner vises forkert ved %% search på domain
+* [BUG] Nogle harddiske dukker ikke op
+* [NEW] Vis forskel på harddiske/cdrom: lave harddrives om til "drives"
+* [BUG] Tooltip virker ikke efter ajax reload af servers
 * [BUG] Domains:
         Brug http://tablesorter.com/docs/example-option-text-extraction.html til at sortere på links
 * [BUG] Search: 
@@ -15,6 +19,10 @@ TODO
         Behold kobling mellem account og domain selv hvis databasen bliver tømt for domæner og servere
 
 ===== [ DONE ] =======================================================================================================
+* [NEW] Formater uptime
+* [NEW] Delay på tooltips + plugin til ikke ex expande ned ad
+* [NEW] Extern ip
+* [BUG] Search på domæne concats servers
 * [BUG] Samling af bugs relatered til ændring af kolonner:
         ajax actions i server list virker ikke efter ændring af kolonner
         #fieldSelector bliver ikke opdateret efter ajax kald
