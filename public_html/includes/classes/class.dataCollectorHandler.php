@@ -24,7 +24,7 @@ class dataCollectorHandler implements mvc\ActionHandler
     $server->updated = mktime();
     $server->name    = $data['hostname'];
     $server->int_ip  = $data['ipaddress'];
-    $server->ext_ip  = '';
+    $server->ext_ip  = ( preg_match('/^(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)(?:[.](?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)){3}$/', $data['external_ip'] ) ? $data['external_ip'] : '');
 
     $hardware = array(
       'memory'   => $data['memorysize'],

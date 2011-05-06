@@ -15,6 +15,8 @@ foreach ($facterLines as $line)
   $hostStats[$key] = $value;
 }
 
+$hostStats['external_ip'] = getExternalIP();
+
 if ($hostStats['virtual'] == 'xen0') 
 {
   $domUs = parseXenDomUs();
@@ -201,6 +203,19 @@ function parseVhosts()
     }
   }
   return $vhosts;
+}
+
+/**
+ * Gets the external IP of the server
+ *
+ * @return string
+ * @author Henrik Farre <hf@bellcom.dk>
+ **/
+function getExternalIP()
+{
+  $page = file_get_contents('http://checkip.dyndns.org/');
+  preg_match('/(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)(?:[.](?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)){3}/',$page,$matches);
+  return $matches[0];
 }
 
 /**
