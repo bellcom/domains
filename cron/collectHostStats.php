@@ -76,7 +76,6 @@ function physicalDiskInfo()
   $disks = array();
   if (is_executable('/sbin/hdparm'))
   {
-    // TODO: support old IDE devices hd[a-z]
     foreach ( glob('/dev/[h,s]d[a-z]') as $disk )
     {
       $output = trim(shell_exec('/sbin/hdparm -i '. $disk .' 2>/dev/null'));
@@ -85,7 +84,6 @@ function physicalDiskInfo()
       {
         $line = trim($line);
 
-        // only want Model info
         if ( strpos($line,'Model=') !== false  )
         {
           $clean  = array();
@@ -98,6 +96,19 @@ function physicalDiskInfo()
           $str = implode('&',$clean);
           parse_str( $str , $result );
           $disks[$disk] = $result;
+        }
+
+        if ( strpos($line,'Config=') !== false  )
+        {
+          $disks[$disk]['type'] = 'harddrive';
+          if ( strpos($line,'Removeable') !== false  )
+          {
+            $disks[$disk]['type'] = 'optical';
+          }
+          if ( strpos($line,'nonMagnetic') !== false  )
+          {
+            $disks[$disk]['type'] = 'optical';
+          }
           break;
         }
       }

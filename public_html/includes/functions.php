@@ -118,7 +118,7 @@ function getAvaliableFields( $view )
     'arch'             => 'Arch',
     'cpu_count'        => 'CPU count',
     'memory'           => 'Memory',
-    'harddrives'       => 'Harddrives',
+    'drives'           => 'Drives',
     'partitions'       => 'Partitions',
     'actions'          => 'Actions',
     'comment'          => 'Comments',

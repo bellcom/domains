@@ -30,19 +30,19 @@ foreach ( $enabledFields as $key => $value )
     case 'memory':
       echo '<td class="hardware memory'. ( (empty($hardware['memory'])) ? ' error' : '' ) .'">'. ( (empty($hardware['memory'])) ? '?' : $hardware['memory'] ) .'</td>';
       break;
-    case 'harddrives':
-      $harddrives = R::related( $server, 'harddrive');
-      echo '<td class="hardware harddrives">';
-      if ( !empty($harddrives) )
+    case 'drives':
+      $drives = R::related( $server, 'drive');
+      echo '<td class="hardware drives">';
+      if ( !empty($drives) )
       {
-        foreach ( $harddrives as $hd )
+        foreach ( $drives as $d )
         {
-          echo '<div class="tooltip_trigger"><img src="/design/desktop/images/harddrive.png" class="icon"/></div>
+          echo '<div class="tooltip_trigger"><img src="/design/desktop/images/'.($d->type=='harddrive' ? 'harddrive':'drive-cdrom').'.png" class="icon"/></div>
             <div class="tooltip">
-            '. $hd->brand .'<br/>
-            Model: '. $hd->model.'<br/>
-            Serial: '.$hd->serial_no.'<br/>
-            Firmware: '.$hd->fw_revision .'</div>';
+            '. $d->brand .'<br/>
+            Model: '. $d->model.'<br/>
+            Serial: '.$d->serial_no.'<br/>
+            Firmware: '.$d->fw_revision .'</div>';
         }
       } 
       echo '</td>';
@@ -72,14 +72,14 @@ foreach ( $enabledFields as $key => $value )
             $img = 'exclamation';
           }
 
-          echo '<div class="tooltip_trigger harddrive';
+          echo '<div class="tooltip_trigger drive';
           if (!empty($img))
           {
             echo ' warning"><img src="/design/desktop/images/'.$img.'.png" class="icon"/>';
           }
           else
           {
-            echo '"><img src="/design/desktop/images/harddrive.png" class="icon"/>';
+            echo '"><img src="/design/desktop/images/partitions.png" class="icon"/>';
           }
           echo '</div>
             <div class="tooltip">'.$msg;

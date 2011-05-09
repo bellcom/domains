@@ -1,11 +1,11 @@
 <?php
 /**
- * Provides functions related to the harddrive bean
+ * Provides functions related to the drive bean
  *
  * @packaged default
  * @author Henrik Farre <hf@bellcom.dk>
  **/
-class Model_Harddrive extends RedBean_SimpleModel
+class Model_Drive extends RedBean_SimpleModel
 {
   /**
    * Tries to set the brand value to something usefull by looking at the model value
@@ -46,7 +46,17 @@ class Model_Harddrive extends RedBean_SimpleModel
       $brand = 'Maxtor';
       $found = true;
     }
+    if ( !$found && substr($model, 0, 7) == 'HITACHI')
+    {
+      $brand = 'Hitachi';
+      $found = true;
+    }
+    if ( !$found && substr($model, 0, 7) == 'LITE-ON')
+    {
+      $brand = 'LITE-ON';
+      $found = true;
+    }
 
     $this->brand = ($found) ? $brand : 'Unknown';
   }
-} // END class Model_Harddrive
+} // END class Model_Drive

@@ -7,7 +7,7 @@ mvc\store('config',$config);
 
 require 'redbean/rb.php';
 require 'models/class.Model_Domain.php';
-require 'models/class.Model_Harddrive.php';
+require 'models/class.Model_Drive.php';
 require 'classes/class.ajaxHandler.php';
 require 'classes/class.contentHandler.php';
 require 'classes/class.dataCollectorHandler.php';

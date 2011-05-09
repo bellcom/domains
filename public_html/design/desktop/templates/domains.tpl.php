@@ -19,15 +19,21 @@ $linker = mvc\retrieve('beanLinker');
 
 foreach ( $domains as $domain ) 
 {
-  $owner = R::relatedOne($domain,'owner');
-  $hasOwner = ( $owner instanceof RedBean_OODBBean ) ? true : false;
+  $owners = array();
+  $owners = R::related($domain,'owner');
+
+  $ownerString = '';
+  foreach ( $owners as $owner )
+  {
+    $ownerString .= '<a href="'.sprintf( mvc\retrieve('config')->sugarAccountUrl,  $owner->account_id ) .'">'.$owner->name.'</a> ';
+  }
 
   $vhost = $linker->getBean( $domain, 'apache_vhost' );
   $server = $linker->getBean($vhost, 'server');
 
   echo '<tr>
     <td><a href="http://'.$domain->getFQDN().'">'.$domain->getFQDN().'</a></td>
-    <td>'. ($hasOwner ? '<a href="'.sprintf( mvc\retrieve('config')->sugarAccountUrl,  $owner->account_id ) .'">'.$owner->name.'</a>' : '') .'</td>
+    <td>'. $ownerString .'</td>
     <td>'. $domain->type .'</td>
     <td>'. $server->name .'</td>
     <td>'. $domain->tld .'</td>

@@ -53,10 +53,10 @@ class dataCollectorHandler implements mvc\ActionHandler
     {
       foreach ( $data['disk']['physical'] as $disk )
       {
-        $drive = R::findOne("harddrive", "serial_no=?", array($disk['SerialNo']));
+        $drive = R::findOne("drive", "serial_no=?", array($disk['SerialNo']));
         if ( !($drive instanceof RedBean_OODBBean) )
         {
-          $drive = R::dispense('harddrive');
+          $drive = R::dispense('drive');
           $drive->created     = mktime();
           $drive->updated     = mktime();
           $drive->is_active   = true;
