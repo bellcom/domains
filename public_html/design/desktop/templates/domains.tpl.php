@@ -5,8 +5,8 @@
       <tr>
         <th>Name</th>
         <th>Owner</th>
-        <th>Type</th>
         <th>Server</th>
+        <th>IP addresses</th>
         <th>TLD</th>
       </tr>
     </thead>
@@ -28,14 +28,31 @@ foreach ( $domains as $domain )
     $ownerString .= '<a href="'.sprintf( mvc\retrieve('config')->sugarAccountUrl,  $owner->account_id ) .'">'.$owner->name.'</a> ';
   }
 
-  $vhost = $linker->getBean( $domain, 'apache_vhost' );
-  $server = $linker->getBean($vhost, 'server');
+  $vhostEntries = R::find( 'vhostEntry', 'domain_id = ?', array($domain->id) );
+  $servers = array();
+  foreach ( $vhostEntries as $entry )
+  {
+    $server = $linker->getBean( $entry, 'server' );
+    $servers[] = $server->name;
+  }
+
+  $ips = array();
+  $ipString = '';
+  $ipAddresses = R::related($domain,'ip_address');
+  if ( !empty($ipAddresses) )
+  {
+    foreach ($ipAddresses as $ip)
+    {
+      $ips[] = $ip->value;
+    }
+    $ipString = implode(', ',$ips);
+  }
 
   echo '<tr>
-    <td><a href="http://'.$domain->getFQDN().'">'.$domain->getFQDN().'</a></td>
+    <td><a href="http://'.$domain->name.'">'.$domain->name.'</a></td>
     <td>'. $ownerString .'</td>
-    <td>'. $domain->type .'</td>
-    <td>'. $server->name .'</td>
+    <td>'. implode(', ',$servers) .'</td>
+    <td>'. $ipString .'</td>
     <td>'. $domain->tld .'</td>
     </tr>';
 }

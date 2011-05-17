@@ -60,7 +60,7 @@ class searchHandler
       $owners = array();
       $owners  = R::related( $result, 'owner' );
       $linker = mvc\retrieve('beanLinker');
-      $vhost = $linker->getBean($result,'apache_vhost');
+      $vhost = $linker->getBean($result,'vhost');
       $server = $linker->getBean($vhost,'server');
 
       if ( !isset( $domainResults[ $result->name ] ) )
@@ -79,6 +79,7 @@ class searchHandler
     foreach ( $domainResults as $name => $result )
     {
       $owners = array();
+      $owner = '';
       $servers = array();
       $id = $name;
 
@@ -124,15 +125,21 @@ class searchHandler
   private function serverSearch( $str )
   {
     $finalResults = array();
-    $initialResults = R::find('domain', 'name LIKE ?',array($str));
+    $initialResults = R::find('server', 'name LIKE ?',array($str));
 
     foreach ($initialResults as $result )
     {
+      $parent = null;
+      if ( $result->type == 'xenu' )
+      {
+        $parent = R::getParent( $result );
+      }
+
       $formattedResult = array(
         'id'    => $result->id,
         'label' => $result->name,
         'type'  => $this->type,
-        'desc'  => '<td></td><td>'.$result->name .'</td><td>type: '. $result->type  .' internal ip: '. $result->int_ip .'</td>'
+        'desc'  => '<tr><td></td><td>'.$result->name .'</td><td>type: '. $result->type . (is_null($parent) ? '' : ' (on '. $parent->name .')' ) .' internal ip: '. $result->int_ip .'</td></tr>'
       );
       $finalResults[] = $formattedResult;
     }
@@ -143,7 +150,7 @@ class searchHandler
   /**
    * Searches for accounts
    *
-   * @return void
+   * @return array
    * @author Henrik Farre <hf@bellcom.dk>
    **/
   private function accountSearch( $str )
@@ -173,6 +180,40 @@ class searchHandler
       error_log(__LINE__.':'.__FILE__.' '.$e->getMessage()); // hf@bellcom.dk debugging
     }
     return $finalResults;
+  }
+
+  /**
+   * Searches for owners (accounts assigned to domains)
+   *
+   * @return array
+   * @author Henrik Farre <hf@bellcom.dk>
+   **/
+  private function ownerSearch( $str )
+  {
+    $finalResults = array();
+    $initialResults = R::find('owner', 'name LIKE ?',array($str));
+
+    foreach ($initialResults as $result )
+    {
+      $domains = R::related($result,'domain');
+      $str = '';
+      foreach ( $domains as $domain )
+      {
+        $str .= $domain->name .'<br/>';
+      }
+
+      $formattedResult = array(
+        'id'    => $result->id,
+        'label' => $result->name,
+        'type'  => $this->type,
+        'desc'  => '<tr><td></td><td>'.$result->name .'</td><td>'.$str.'</td></tr>'
+      );
+      $finalResults[] = $formattedResult;
+    }
+
+    return $finalResults;
+  
+    
   }
 
   /**

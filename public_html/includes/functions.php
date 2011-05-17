@@ -13,11 +13,6 @@ function getUnrelatedMainDomains()
 
   foreach ( $allDomains as $domain )
   {
-    if ( $domain->type !== 'name' )
-    {
-      continue;
-    } 
-
     $relations = array();
     $relations = R::related($domain,'owner');
     if ( empty($relations) )

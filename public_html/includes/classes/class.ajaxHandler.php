@@ -70,7 +70,7 @@ class ajaxHandler implements mvc\ActionHandler
             $domain = R::load( 'domain', $id );
             R::associate( $owner, $domain );
 
-            $otherDomainsDefinedInVhost = R::find("domain","apache_vhost_id = ?",array($domain->apache_vhost_id));
+            /*$otherDomainsDefinedInVhost = R::find("domain","vhost_id = ?",array($domain->vhost_id));
             foreach ($otherDomainsDefinedInVhost as $otherDomain) 
             {
               if ( in_array( $otherDomain->id, $_GET['domains'] ) )
@@ -78,7 +78,7 @@ class ajaxHandler implements mvc\ActionHandler
                 continue;
               }
               R::associate( $owner, $otherDomain );
-            }
+            }*/
           }
 
           $domains = getUnrelatedMainDomains();
@@ -94,33 +94,28 @@ class ajaxHandler implements mvc\ActionHandler
             ));
         }
         break;
-      case 'getDomains':
+      case 'getDomains': // TODO: use search
         $serverID = (int) $_GET['serverID'];
         $server = R::load("server",$serverID);
 
         $linker = mvc\retrieve('beanLinker');
-        $vhostIDs = $linker->getKeys($server,'apache_vhost');
+        $vhostEntries = R::find( 'vhostEntry','server_id = ?',array($server->id) );
 
-        $domains = array();
-        foreach ($vhostIDs as $ID )
-        {
-          $domains = array_merge( $domains, R::find('domain', 'apache_vhost_id=?',array($ID)) );
-        }
-
-        if ( !empty($domains) )
+        if ( !empty($vhostEntries) )
         {
           $html = '<h1>Domains in vhosts on server (excluding www aliases)</h1><div class="domains list">';
-          foreach ($domains as $domain) 
+          foreach ($vhostEntries as $entry ) 
           {
+            $domain = R::load('domain',$entry->domain_id);
+
             // ignore www aliases
             if ( $domain->sub == 'www' && $domain->type == 'alias')
             {
               continue;
             }
-            // TODO: dns_info is missing
             $html .= '<div class="domain">
-              <div class="status">'. (!empty($domain->dns_info) ? '<img src="/design/desktop/images/error.png" title="'.$domain->dns_info.'" class="icon"/>' : '').'</div>
-              <div class="name'. ($domain->is_active ? '' : ' inactive')  .'">'. (($domain->type == 'alias') ? '- ' : '') .'<a href="http://'.$domain->getFQDN().'">'. $domain->getFQDN() .'</a></div>
+              <div class="status">'. ((!$entry->is_valid) ? '<img src="/design/desktop/images/error.png" title="'.$entry->note .'" class="icon"/>' : '').'</div>
+              <div class="name'. ($domain->is_active ? '' : ' inactive')  .'">'. (($entry->type == 'alias') ? '- ' : '') .'<a href="http://'.$domain->getFQDN().'">'. $domain->name .'</a></div>
               <br class="cls"/>
               </div>';
           }

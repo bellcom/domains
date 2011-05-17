@@ -95,9 +95,9 @@ foreach ( $enabledFields as $key => $value )
     case 'actions':
       echo '<td class="actions">';
 
-      //$vhosts = R::find('apache_vhost','server_id=?',array($server->id));
+      //$vhosts = R::find('vhost','server_id=?',array($server->id));
 
-      $count = R::getCell("SELECT count(*) AS count FROM apache_vhost WHERE server_id = ?",array($server->id));
+      $count = R::getCell("SELECT count(*) AS count FROM vhost WHERE server_id = ?",array($server->id));
 
       if ( $count['count'] > 0 )
       {
@@ -112,7 +112,18 @@ foreach ( $enabledFields as $key => $value )
       {
         echo '_add';
       }
-      echo '.png" alt="Edit comment" class="icon"/></a>'.( !empty( $server->comment ) ? $server->comment : '').'</td>';
+
+      $comment = '';
+      if ( strlen($server->comment) > 10 )
+      {
+        $comment = '<span class="tooltip_trigger">'. substr($server->comment, 0, 7).'...</span><div class="tooltip">'.$server->comment.'<div>';
+      }
+      else
+      {
+        $comment = $server->comment;
+      }
+
+      echo '.png" alt="Edit comment" class="icon"/></a>'.$comment.'</td>';
       break;
     default:
       echo '<td class="'.$key.'">'.$server->$key.'</td>';
