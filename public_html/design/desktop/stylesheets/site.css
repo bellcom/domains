@@ -156,7 +156,7 @@ th {
   }
 
   #servers.list .actions img,
-  #servers.list .harddrives img,
+  #servers.list .drives img,
   #servers.list .partitions img {
     display: block;
     padding: 0;
@@ -178,26 +178,26 @@ th {
     background-repeat: no-repeat;
   }
 
-  #servers.list .hardware.harddrives,
+  #servers.list .hardware.drives,
   #servers.list .hardware.partitions,
   #servers.list .hardware.error {
     background-image: none;
     padding-left: 0;
   }
 
-  #servers.list .hardware.harddrives img, 
-  #servers.list .hardware.partitions .harddrive {
+  #servers.list .hardware.drives img, 
+  #servers.list .hardware.partitions .drive {
     float: left;
     margin-right: 14px;
   }
 
-  #servers.list .hardware.partitions .harddrive.warning {
-    background-image: url('../images/harddrive.png');
+  #servers.list .hardware.partitions .drive.warning {
+    background-image: url('../images/partitions.png');
     background-repeat: no-repeat;
     margin-right: 6px;
   }
 
-  #servers.list .hardware.partitions .harddrive.warning img {
+  #servers.list .hardware.partitions .drive.warning img {
     margin: 2px 0 0 8px;
   }
 
@@ -225,7 +225,7 @@ th {
   #servers.list th.memory {
     width: 6em;
   }
-  #servers.list th.harddrives {
+  #servers.list th.drives {
     width: 6em;
   }
   #servers.list th.partitions {

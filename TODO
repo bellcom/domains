@@ -1,26 +1,38 @@
-TODO
+===== [ TODO ] =======================================================================================================
 
+* [BUG] Nogle harddiske dukker ikke op
+* [BUG] Tooltip virker ikke efter ajax reload af servers
 * [BUG] Domains:
         Brug http://tablesorter.com/docs/example-option-text-extraction.html til at sortere på links
-* [BUG] Search: 
-        viser ikke server når man søger efter domæne
-        owner search virker ikke
 * [NEW] Opdater comments felt med det samme
-* [NEW] Vist max X karaktere i comment felt, hvis der er flere brug tooltip
-* [BUG] Samling af bugs relatered til ændring af kolonner:
-        ajax actions i server list virker ikke efter ændring af kolonner
-        #fieldSelector bliver ikke opdateret efter ajax kald
-        Facebox close virker ikke efter anden klik på #showFieldSelector
-        Tablesorter virker ikke med dynamiske kolonner
-* [NEW] Domain status: hvordan skal fejl kobles?
-        ajaxHandler getDomains: tilpasses når domain status er fikset
 * [NEW] domains project that need a new name..  "pointy" siger ulrik
 * [BUG] Sortering af servere?
 * [NEW] ting som er manuelt sat bør gemmes i seperate tabeller og bruge "navne" som keys. f.eks. comments på server, binding mellem domæner og accounts
         hvis ovenstående virker, så kan man køre en clear på alle tabeller undtagen disse, og systemet er clean næste morgen
         Behold kobling mellem account og domain selv hvis databasen bliver tømt for domæner og servere
 
+===== [ Domain/vhost/server rewrite] =================================================================================
+* [NEW] dns-check.php
+
 ===== [ DONE ] =======================================================================================================
+* [NEW] Domain status: hvordan skal fejl kobles?
+        ajaxHandler getDomains: tilpasses når domain status er fikset
+* [NEW] Vist max X karaktere i comment felt, hvis der er flere brug tooltip
+* [BUG] Owner vises forkert ved %% search på domain
+* [BUG] Search: 
+        owner search virker ikke
+* [NEW] Vis forskel på harddiske/cdrom: lave harddrives om til "drives"
+* [NEW] Formater uptime
+* [NEW] Delay på tooltips + plugin til ikke ex expande ned ad
+* [NEW] Extern ip
+* [BUG] Search på domæne concats servers
+* [BUG] Samling af bugs relatered til ændring af kolonner:
+        ajax actions i server list virker ikke efter ændring af kolonner
+        #fieldSelector bliver ikke opdateret efter ajax kald
+        Facebox close virker ikke efter anden klik på #showFieldSelector
+        Tablesorter virker ikke med dynamiske kolonner
+* [BUG] Search: 
+        viser ikke server når man søger efter domæne
 * [NEW] visning af apt upgrade info på serveroversigten. vis bare antallet af pakker som skal opgraderes, og listen ved mouseover. evt med forskellige farver alt efter hvor mange det er
 * [NEW] visning af uptime på serveroversigten
 * [NEW] Valg af hvilke kolonner der skal vises i oversigterne

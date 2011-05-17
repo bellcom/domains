@@ -24,7 +24,7 @@ class dataCollectorHandler implements mvc\ActionHandler
     $server->updated = mktime();
     $server->name    = $data['hostname'];
     $server->int_ip  = $data['ipaddress'];
-    $server->ext_ip  = '';
+    $server->ext_ip  = ( preg_match('/^(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)(?:[.](?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)){3}$/', $data['external_ip'] ) ? $data['external_ip'] : '');
 
     $hardware = array(
       'memory'   => $data['memorysize'],
@@ -53,59 +53,23 @@ class dataCollectorHandler implements mvc\ActionHandler
     {
       foreach ( $data['disk']['physical'] as $disk )
       {
-        $drive = R::findOne("harddrive", "serial_no=?", array($disk['SerialNo']));
+        // TODO: set drives inactive to make sure only active drives are is_active = true;
+        $drive = R::findOne("drive", "serial_no=?", array($disk['SerialNo']));
         if ( !($drive instanceof RedBean_OODBBean) )
         {
-          $drive = R::dispense('harddrive');
+          $drive = R::dispense('drive');
           $drive->created     = mktime();
           $drive->updated     = mktime();
           $drive->is_active   = true;
-
-          $brand = ( isset($disk['brand']) ? $disk['brand'] : 'Unknown' );
-
-          // Try an educated guess
-          if ( $brand == 'Unknown' )
-          {
-            $found = false;
-            if ( !$found && substr($disk['Model'], 0, 2) == 'ST')
-            {
-              $brand = 'Seagate';
-              $found = true;
-            }
-            if ( !$found && substr($disk['Model'], 0, 2) == 'IC')
-            {
-              $brand = 'IBM';
-              $found = true;
-            }
-            if ( !$found && substr($disk['Model'], 0, 3) == 'WDC')
-            {
-              $brand = 'Western Digital';
-              $found = true;
-            }
-            if ( !$found && substr($disk['Model'], 0, 7) == 'TOSHIBA')
-            {
-              $brand = 'Toshiba';
-              $found = true;
-            }
-            if ( !$found && substr($disk['Model'], 0, 7) == 'SAMSUNG')
-            {
-              $brand = 'Samsung';
-              $found = true;
-            }
-            if ( !$found && substr($disk['Model'], 0, 6) == 'MAXTOR')
-            {
-              $brand = 'Maxtor';
-              $found = true;
-            }
-          }
-
-          $drive->brand       = $brand;
+          $drive->setBrand($disk['Model']);
           $drive->model       = $disk['Model'];
           $drive->serial_no   = $disk['SerialNo'];
           $drive->fw_revision = $disk['FwRev'];
+          $drive->type        = $disk['type'];
         }
         else
         {
+          $drive->is_active = true;
           $drive->updated = mktime();
         }
 
@@ -145,45 +109,45 @@ class dataCollectorHandler implements mvc\ActionHandler
     {
       $updateTimestamp = mktime();
 
-      foreach ($data['vhosts'] as $vhost) 
+      foreach ($data['vhosts'] as $v) 
       {
-        $apacheVhost = R::findOne('apache_vhost','server_id=? AND server_name=?',array($serverID,$vhost['servername']));
-        if ( !($apacheVhost instanceof RedBean_OODBBean) )
+        $vhost = R::findOne('vhost','server_id=? AND server_name=?',array($serverID,$v['servername']));
+        if ( !($vhost instanceof RedBean_OODBBean) )
         {
-          $apacheVhost = R::dispense('apache_vhost');
-          $apacheVhost->created = $updateTimestamp;
+          $vhost = R::dispense('vhost');
+          $vhost->created = $updateTimestamp;
         }
 
-        $apacheVhost->updated       = $updateTimestamp;
-        $apacheVhost->server_name   = $vhost['servername'];
-        $apacheVhost->file_name     = ( isset($vhost['filename']) ? $vhost['filename'] : null );
-        $apacheVhost->document_root = ( isset($vhost['documentroot']) ? $vhost['documentroot'] : null );
-        $apacheVhost->server_admin  = ( isset($vhost['serveradmin']) ? $vhost['serveradmin'] : null );
+        $vhost->updated       = $updateTimestamp;
+        $vhost->server_name   = $v['servername'];
+        $vhost->file_name     = ( isset($v['filename'])     ? $v['filename'] : null );
+        $vhost->document_root = ( isset($v['documentroot']) ? $v['documentroot'] : null );
+        $vhost->server_admin  = ( isset($v['serveradmin'])  ? $v['serveradmin'] : null );
 
         $app = null;
-        if ( isset($vhost['app']['name']) )
+        if ( isset($v['app']['name']) )
         {
-          $app = R::findOne('app','name=?',array($vhost['app']['name']));
+          $app = R::findOne('app','name=?',array($v['app']['name']));
           if ( !($app instanceof RedBean_OODBBean) )
           {
             $app = R::dispense('app');
-            $app->name = $vhost['app']['name'];
+            $app->name = $v['app']['name'];
             R::store($app);
           }
         }
         
-        $apacheVhost->app_version   = ( isset( $vhost['app']['version'] ) ? $vhost['app']['version'] : null);
-        $apacheVhost->is_valid      = true;
-        $apacheVhost->comment       = '';
+        $vhost->app_version   = ( isset( $v['app']['version'] ) ? $v['app']['version'] : null);
+        //$vhost->is_valid      = true;
+        $vhost->comment       = '';
 
         if ( $app instanceof RedBean_OODBBean )
         {
-          $linker->link($apacheVhost,$app);
+          $linker->link($vhost,$app);
         }
-        $linker->link($apacheVhost,$server);
-        $apacheVhostID = R::store($apacheVhost);
+        $linker->link($vhost,$server);
+        $vhostID = R::store($vhost);
 
-        foreach ($vhost['domains'] as $domainEntry) 
+        foreach ($v['domains'] as $domainEntry) 
         {
           if ( empty($domainEntry['name']) )
           {
@@ -199,15 +163,19 @@ class dataCollectorHandler implements mvc\ActionHandler
           $tld = array_shift( $domainParts );
           $sld = array_shift( $domainParts );
           $sub = ( !empty( $domainParts ) ? implode( '.', array_reverse( $domainParts ) ) : null );
-
-          $sql = 'sub=? AND sld=? AND tld=? AND apache_vhost_id=?';
-          $args = array($sub,$sld,$tld,$apacheVhostID);
+          /*
+          $sql = 'sub=? AND sld=? AND tld=? AND vhost_id=?';
+          $args = array($sub,$sld,$tld,$vhostID);
           if ( is_null($sub) )
           {
-            $sql = 'sub IS NULL AND sld=? AND tld=? AND apache_vhost_id=?';
-            $args = array($sld,$tld,$apacheVhostID);
+            $sql = 'sub IS NULL AND sld=? AND tld=? AND vhost_id=?';
+            $args = array($sld,$tld,$vhostID);
           }
+           
           $domain = R::findOne('domain',$sql,$args);
+           */
+
+          $domain = R::findOne('domain','name = ?', array($domainEntry['name']));
 
           if ( !($domain instanceof RedBean_OODBBean) )
           {
@@ -219,21 +187,36 @@ class dataCollectorHandler implements mvc\ActionHandler
           $domain->sld       = $sld;
           $domain->tld       = $tld;
           $domain->name      = $domainEntry['name'];
-          $domain->type      = $domainEntry['type'];
           $domain->is_active = true;
 
-          $linker->link($domain,$apacheVhost);
+          //$linker->link($domain,$vhost);
           $domainID = R::store($domain);
+
+          $vhostEntry = R::findOne('vhostEntry','type = ? AND vhost_id = ? AND domain_id = ?', array($domainEntry['type'],$vhostID,$domainID));
+          if ( !($vhostEntry instanceof RedBean_OODBBean) )
+          {
+            $vhostEntry = R::dispense('vhostEntry'); 
+            $vhostEntry->created = $updateTimestamp;
+            $vhostEntry->is_valid = true;
+            $vhostEntry->note = '';
+          }
+
+          $vhostEntry->type = $domainEntry['type'];
+          $vhostEntry->updated = $updateTimestamp;
+          $linker->link($vhostEntry,$vhost);
+          $linker->link($vhostEntry,$domain);
+          $linker->link($vhostEntry,$server);
+          R::store($vhostEntry);
         }
 
         // set is_active to false for those domains in the current vhost which has not been updated
-        $notUpdatedDomains = R::find("domain","updated != ? AND apache_vhost_id = ?", array( $updateTimestamp, $apacheVhostID ));
+        /*$notUpdatedDomains = R::find("domain","updated != ? AND vhost_id = ?", array( $updateTimestamp, $vhostID ));
         $domain = array();
         foreach ($notUpdatedDomains as $domain) 
         {
           $domain->is_active = false; 
           $domainID = R::store($domain);
-        }
+        }*/
       }
     }
   }

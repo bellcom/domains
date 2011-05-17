@@ -18,6 +18,9 @@ foreach ( $enabledFields as $key => $value )
       }
       echo '</td>';
       break;
+    case 'uptime':
+      echo '<td class="'.$key.'">'. ( ($server->$key>0) ? (int)( $server->$key/60/60/24 ).' days' : '' ) .'</td>';
+      break;
     case 'os':
       echo '<td class="os '.strtolower( $server->os ).'">'.$server->os.'</td>';
       break;
@@ -27,19 +30,19 @@ foreach ( $enabledFields as $key => $value )
     case 'memory':
       echo '<td class="hardware memory'. ( (empty($hardware['memory'])) ? ' error' : '' ) .'">'. ( (empty($hardware['memory'])) ? '?' : $hardware['memory'] ) .'</td>';
       break;
-    case 'harddrives':
-      $harddrives = R::related( $server, 'harddrive');
-      echo '<td class="hardware harddrives">';
-      if ( !empty($harddrives) )
+    case 'drives':
+      $drives = R::related( $server, 'drive');
+      echo '<td class="hardware drives">';
+      if ( !empty($drives) )
       {
-        foreach ( $harddrives as $hd )
+        foreach ( $drives as $d )
         {
-          echo '<div class="tooltip_trigger"><img src="/design/desktop/images/harddrive.png" class="icon"/></div>
+          echo '<div class="tooltip_trigger"><img src="/design/desktop/images/'.($d->type=='harddrive' ? 'harddrive':'drive-cdrom').'.png" class="icon"/></div>
             <div class="tooltip">
-            '. $hd->brand .'<br/>
-            Model: '. $hd->model.'<br/>
-            Serial: '.$hd->serial_no.'<br/>
-            Firmware: '.$hd->fw_revision .'</div>';
+            '. $d->brand .'<br/>
+            Model: '. $d->model.'<br/>
+            Serial: '.$d->serial_no.'<br/>
+            Firmware: '.$d->fw_revision .'</div>';
         }
       } 
       echo '</td>';
@@ -69,14 +72,14 @@ foreach ( $enabledFields as $key => $value )
             $img = 'exclamation';
           }
 
-          echo '<div class="tooltip_trigger harddrive';
+          echo '<div class="tooltip_trigger drive';
           if (!empty($img))
           {
             echo ' warning"><img src="/design/desktop/images/'.$img.'.png" class="icon"/>';
           }
           else
           {
-            echo '"><img src="/design/desktop/images/harddrive.png" class="icon"/>';
+            echo '"><img src="/design/desktop/images/partitions.png" class="icon"/>';
           }
           echo '</div>
             <div class="tooltip">'.$msg;
@@ -92,24 +95,35 @@ foreach ( $enabledFields as $key => $value )
     case 'actions':
       echo '<td class="actions">';
 
-      //$vhosts = R::find('apache_vhost','server_id=?',array($server->id));
+      //$vhosts = R::find('vhost','server_id=?',array($server->id));
 
-      $count = R::getCell("SELECT count(*) AS count FROM apache_vhost WHERE server_id = ?",array($server->id));
+      $count = R::getCell("SELECT count(*) AS count FROM vhost WHERE server_id = ?",array($server->id));
 
       if ( $count['count'] > 0 )
       {
-        echo '<a class="ajaxRequest" href="/service/ajax/getDomains/json/?serverID='.$server->id.'"><img src="/design/desktop/images/domain_template.png" /></a>';
+        echo '<a class="ajaxRequest" href="/service/ajax/getDomains/?serverID='.$server->id.'"><img src="/design/desktop/images/domain_template.png" /></a>';
       }
 
       echo '</td>';
       break;
     case 'comment':
-      echo '<td><a class="ajaxRequest" href="/service/ajax/editServerComment/json/?serverID='.$server->id.'"><img src="/design/desktop/images/pencil';
+      echo '<td><a class="ajaxRequest" href="/service/ajax/editServerComment/?serverID='.$server->id.'"><img src="/design/desktop/images/pencil';
       if ( empty( $server->comment ) )
       {
         echo '_add';
       }
-      echo '.png" alt="Edit comment" class="icon"/></a>'.( !empty( $server->comment ) ? $server->comment : '').'</td>';
+
+      $comment = '';
+      if ( strlen($server->comment) > 10 )
+      {
+        $comment = '<span class="tooltip_trigger">'. substr($server->comment, 0, 7).'...</span><div class="tooltip">'.$server->comment.'<div>';
+      }
+      else
+      {
+        $comment = $server->comment;
+      }
+
+      echo '.png" alt="Edit comment" class="icon"/></a>'.$comment.'</td>';
       break;
     default:
       echo '<td class="'.$key.'">'.$server->$key.'</td>';

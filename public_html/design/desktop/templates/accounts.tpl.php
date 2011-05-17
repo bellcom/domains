@@ -23,8 +23,7 @@ foreach ($domains as $domain)
   {
     continue;
   }
-  $fqdn = ( !is_null( $domain->sub ) ? $domain->sub.'.' : '' ) . $domain->sld.'.'.$domain->tld;
-  echo '<option value="'.$domain->id.'">'.$fqdn.'</option>';
+  echo '<option value="'.$domain->id.'">'.$domain->name.'</option>';
 }
 ?>
     </select>
