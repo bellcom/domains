@@ -15,6 +15,8 @@ foreach ($facterLines as $line)
   $hostStats[$key] = $value;
 }
 
+$hostStats['external_ip'] = getExternalIP();
+
 if ($hostStats['virtual'] == 'xen0') 
 {
   $domUs = parseXenDomUs();
@@ -74,7 +76,6 @@ function physicalDiskInfo()
   $disks = array();
   if (is_executable('/sbin/hdparm'))
   {
-    // TODO: support old IDE devices hd[a-z]
     foreach ( glob('/dev/[h,s]d[a-z]') as $disk )
     {
       $output = trim(shell_exec('/sbin/hdparm -i '. $disk .' 2>/dev/null'));
@@ -83,7 +84,6 @@ function physicalDiskInfo()
       {
         $line = trim($line);
 
-        // only want Model info
         if ( strpos($line,'Model=') !== false  )
         {
           $clean  = array();
@@ -96,6 +96,19 @@ function physicalDiskInfo()
           $str = implode('&',$clean);
           parse_str( $str , $result );
           $disks[$disk] = $result;
+        }
+
+        if ( strpos($line,'Config=') !== false  )
+        {
+          $disks[$disk]['type'] = 'harddrive';
+          if ( strpos($line,'Removeable') !== false  )
+          {
+            $disks[$disk]['type'] = 'optical';
+          }
+          if ( strpos($line,'nonMagnetic') !== false  )
+          {
+            $disks[$disk]['type'] = 'optical';
+          }
           break;
         }
       }
@@ -201,6 +214,19 @@ function parseVhosts()
     }
   }
   return $vhosts;
+}
+
+/**
+ * Gets the external IP of the server
+ *
+ * @return string
+ * @author Henrik Farre <hf@bellcom.dk>
+ **/
+function getExternalIP()
+{
+  $page = file_get_contents('http://checkip.dyndns.org/');
+  preg_match('/(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)(?:[.](?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)){3}/',$page,$matches);
+  return $matches[0];
 }
 
 /**
