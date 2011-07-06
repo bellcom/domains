@@ -72,14 +72,14 @@ function cmp_ip($serverIP, RedBean_OODBBean $domain)
         $ipAddress->created = $updateTimestamp;
         $ipAddress->value = $ip;
         $ipAddress->type = 'A';
-        error_log(__LINE__.':'.__FILE__.' Creating: '. $ip .' => '. $domain->name); // hf@bellcom.dk debugging
+#        error_log(__LINE__.':'.__FILE__.' Creating: '. $ip .' => '. $domain->name); // hf@bellcom.dk debugging
       }
       else
       {
         if ( isset($registeredIPs[$ip]) )
         {
           $ipAddress = $registeredIPs[$ip];
-          error_log(__LINE__.':'.__FILE__.' Updating: '. $ip .' => '. $domain->name); // hf@bellcom.dk debugging
+#          error_log(__LINE__.':'.__FILE__.' Updating: '. $ip .' => '. $domain->name); // hf@bellcom.dk debugging
           unset($registeredIPs[$ip]);
         }
       }
@@ -88,7 +88,7 @@ function cmp_ip($serverIP, RedBean_OODBBean $domain)
       {
         $ipAddress->updated = $updateTimestamp;
         R::store($ipAddress);
-        error_log(__LINE__.':'.__FILE__.' Storing: '.$ipAddress->value); // hf@bellcom.dk debugging
+#        error_log(__LINE__.':'.__FILE__.' Storing: '.$ipAddress->value); // hf@bellcom.dk debugging
         R::associate( $domain, $ipAddress );
       }
 
