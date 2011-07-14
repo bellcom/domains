@@ -15,7 +15,10 @@ foreach ($facterLines as $line)
   $hostStats[$key] = $value;
 }
 
+// Stop cron mail spam because of http request fails by just disabling error reporting. TODO find a more reliable IP service
+$oldErrorReporting = error_reporting(0);
 $hostStats['external_ip'] = getExternalIP();
+error_reporting($oldErrorReporting);
 
 if ($hostStats['virtual'] == 'xen0') 
 {
